@@ -1,0 +1,9 @@
+{
+  "name": "coach",
+  "version": "0.1.0",
+  "description": "A quiet AI-fluency thinking partner: shows where you are in the loop with Claude (plan, brief, review, own) and helps with the next step.",
+  "author": {
+    "name": "Implement Consulting Group"
+  },
+  "types": "./types/index.d.ts"
+}

@@ -1,0 +1,67 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Coach round 2</title>
+<style>
+:root{--bg:#FAF9F7;--band:#F0EFEC;--text:#1F1E1D;--muted:#7A7772;--faint:#D4D2CE;--line:#E2E0DC;
+--plan:#6E5FC4;--planbar:#8B7FD6;--brief:#1F8577;--briefbar:#2A9D8F;--review:#B06A12;--reviewbar:#D08A1E;--own:#B83C6A;--ownbar:#D45A85}
+*{box-sizing:border-box}body{margin:0;background:#E9E7E3;font:15px/1.5 -apple-system,"SF Pro Text","Helvetica Neue",sans-serif;color:var(--text)}
+h1{font-size:18px;margin:24px 32px 4px}h2{font-size:13px;color:var(--muted);font-weight:500;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.06em}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:0 32px 40px}
+.col>.title{font-weight:600;margin:16px 0 0}.col>.sub{color:var(--muted);font-size:13px;margin-bottom:4px}
+.frame{background:var(--bg);border-radius:12px;padding:20px 22px;margin-bottom:14px}
+.bubble{margin-left:auto;width:max-content;max-width:80%;background:var(--band);border-radius:14px;padding:9px 16px}
+.meta{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);margin:6px 0 14px}
+.meta.r{justify-content:flex-end}.reply{margin:0 0 6px}.tool{font:13px ui-monospace,Menlo,monospace;color:#55534F}
+.band{background:var(--band);border-radius:14px;padding:12px 16px;margin-top:12px}
+.prompt{background:#fff;border:1px solid #E0DED9;border-radius:14px;padding:12px 16px;color:#A3A09B;margin-top:10px}
+.rail{display:flex;align-items:center;gap:12px;min-height:24px}
+.word{white-space:nowrap}.cap{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.coach{color:#3D3B38;margin-left:auto;padding:2px 6px;border-radius:6px}.coach:hover{background:#E4E2DE}
+.g{display:inline-flex;gap:0;align-items:center}.g i{display:block;height:3px;border-radius:2px;background:var(--faint)}
+.hair{height:1px;background:var(--line);margin:12px 0}
+.ttl{display:flex;align-items:flex-start;gap:12px}.ttl span{flex:1}.x{color:#9A978F;font-size:14px;cursor:default}
+.q{color:var(--muted);font-style:italic;font-size:13.5px;margin-top:2px}.q b{font-style:normal;font-weight:400;margin-right:6px;color:#B5B2AC}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.chip{background:#FBFAF8;border:1px solid #DEDBD6;border-radius:9px;padding:5px 12px;font-size:14px}
+.chip.quiet{background:none;border-color:transparent;color:var(--muted)}
+.picker{display:flex;gap:2px;align-items:center}.pk{padding:1px 8px;border-radius:6px;color:var(--muted)}.pk.on{color:var(--text);background:#E4E2DE}
+.hdr{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+.note{display:flex;gap:12px}.note .mk{width:2px;border-radius:2px;flex:none}
+.small{font-size:13px}.cost{color:var(--muted);font-size:13.5px}
+.lbl{font-size:12.5px;color:var(--muted)}
+</style></head><body>
+<h1>Coach, round 2: two variants of the merged direction (A spine + C hover picker + B precise bars)</h1>
+<div class="cols" id="cols"></div>
+<script>
+const C={plan:['--planbar','--plan','Plan','deciding what Claude should do'],brief:['--briefbar','--brief','Brief','your next prompt'],review:['--reviewbar','--review','Review','checking what Claude gave you'],own:['--ownbar','--own','Own','standing behind what you ship']};
+const W=[10,15,15,10],G=[0,4,2,4];
+function g(st,s=1){return `<span class="g">${['plan','brief','review','own'].map((k,i)=>`<i style="margin-left:${G[i]*s}px;width:${W[i]*s}px;${k===st?`background:var(${C[k][0]})`:''}"></i>`).join('')}</span>`}
+const word=(st,f)=>`<span class="word" style="color:var(${C[st][1]})">${f?'Focus · ':''}${C[st][2]}</span>`;
+const rail=(st,o={})=>`<div class="rail">${g(st)}${word(st,o.focus)}${o.picker?picker(st):`<span class="cap">${o.cap||C[st][3]}</span>`}<span class="coach">${o.off?'<span style="color:#9A978F">Coach off</span>':'Coach'}</span></div>`;
+const picker=st=>`<span class="picker">${['plan','brief','review','own'].map(k=>`<span class="pk ${k===st?'on':''}">${C[k][2]}</span>`).join('')}<span class="cap" style="margin-left:8px;font-size:13px">${C[st][3]}</span></span>`;
+const prompt=t=>`<div class="prompt">${t||'Type / for commands'}</div>`;
+const convo=`<div class="bubble">Use contract end instead. Go.</div>
+<div class="meta r">${g('brief',.7)}<span>Brief</span><span>✓ Corrected Claude's definition</span></div>
+<div class="meta">${g('review',.7)}<span>Review</span></div>
+<p class="reply">Done. Churn is 18.4% for Q3, driven mainly by the SMB tier. I excluded 312 trial accounts from the base.</p><div class="tool">Write churn.py +142</div>`;
+
+// Variant α: card, faithful to refs
+const a={name:'α Card',sub:'Refs-faithful card. Step names appear in place of the caption when the pointer is over the step line.',states:{
+'At rest':convo+`<div class="band">${rail('review')}</div>`+prompt(),
+'Hover the step line → picker':`<div class="band">${rail('review',{picker:1})}</div>`+prompt(),
+'Finding':`<div class="band"><div class="ttl"><span>Claude excluded 312 trial accounts on its own. Was that your call?</span><span class="x">✕</span></div><div class="q"><b>“</b>excluded 312 trial accounts</div><div class="chips"><span class="chip">Show with and without trials</span><span class="chip">What else did you assume?</span></div><div class="hair"></div>${rail('review')}</div>`+prompt(),
+'Focus · Brief':`<div class="band"><div class="hdr">${g('brief',.7)}Focus · Brief</div><div class="ttl"><span>Your next prompt could say what Mette needs to decide.</span><span class="x">✕</span></div><div class="q"><b>“</b>Mette's steering group</div><div class="chips"><span class="chip">What Mette decides</span><span class="chip">What done looks like</span></div><div class="hair"></div>${rail('brief',{focus:1})}</div>`+prompt('<span style="color:#1F1E1D">Mette needs to decide ___ on Thursday, so focus on ___.</span>'),
+'Own':`<div class="band"><div class="ttl"><span>This reaches Mette before Thursday. Three quick checks.</span><span class="x">✕</span></div><div class="q"><b>“</b>git push · email to Mette</div><div class="chips"><span class="chip">☐ Tested it myself</span><span class="chip">☐ No client or personal data</span><span class="chip">☐ Trial exclusion explained</span><span class="chip quiet">Continue anyway</span></div><div class="hair"></div>${rail('own')}</div>`+prompt(),
+'Coach menu':`<div class="band"><div class="chips" style="margin-top:0;justify-content:space-between"><span class="cost">Coach $0.03, 2% of $1.48 this session</span><span style="display:flex;gap:8px"><span class="chip">Turn off coach</span><span class="chip">Settings</span></span></div><div class="hair"></div>${rail('review')}</div>`+prompt(),
+}};
+// Variant β: note, lighter
+const note=(st,body)=>`<div class="note"><span class="mk" style="background:var(${C[st][0]})"></span><div style="flex:1">${body}</div></div>`;
+const b={name:'β Note',sub:'Lighter: a finding is a margin note with a 2px station mark, the chips are quiet text buttons, and the step line carries the picker on hover.',states:{
+'At rest':convo+`<div class="band">${rail('review')}</div>`+prompt(),
+'Hover the step line → picker':`<div class="band">${rail('review',{picker:1})}</div>`+prompt(),
+'Finding':`<div class="band">${note('review',`<div class="ttl"><span>Claude excluded 312 trial accounts on its own. Was that your call?</span><span class="x">✕</span></div><div class="q"><b>“</b>excluded 312 trial accounts</div><div class="chips" style="margin-top:8px"><span class="chip">Show with and without trials</span><span class="chip quiet">What else did you assume?</span></div>`)}<div class="hair"></div>${rail('review')}</div>`+prompt(),
+'Focus · Brief':`<div class="band">${note('brief',`<div class="ttl"><span>Your next prompt could say what Mette needs to decide.</span><span class="x">✕</span></div><div class="q"><b>“</b>Mette's steering group</div><div class="chips" style="margin-top:8px"><span class="chip">What Mette decides</span><span class="chip quiet">What done looks like</span></div>`)}<div class="hair"></div>${rail('brief',{focus:1})}</div>`+prompt('<span style="color:#1F1E1D">Mette needs to decide ___ on Thursday, so focus on ___.</span>'),
+'Own':`<div class="band">${note('own',`<div class="ttl"><span>This reaches Mette before Thursday. Three quick checks.</span><span class="x">✕</span></div><div class="q"><b>“</b>git push · email to Mette</div><div class="chips" style="margin-top:8px"><span class="chip">☐ Tested it myself</span><span class="chip">☐ No client or personal data</span><span class="chip">☐ Trial exclusion explained</span><span class="chip quiet">Continue anyway</span></div>`)}<div class="hair"></div>${rail('own')}</div>`+prompt(),
+'Coach menu':`<div class="band"><div class="chips" style="margin-top:0;justify-content:space-between"><span class="cost">Coach $0.03, 2% of $1.48 this session</span><span style="display:flex;gap:8px"><span class="chip quiet">Turn off coach</span><span class="chip quiet">Settings</span></span></div><div class="hair"></div>${rail('review')}</div>`+prompt(),
+}};
+document.getElementById('cols').innerHTML=[a,b].map(v=>`<div class="col"><div class="title">${v.name}</div><div class="sub">${v.sub}</div>${Object.entries(v.states).map(([k,h])=>`<h2>${k}</h2><div class="frame">${h}</div>`).join('')}</div>`).join('');
+</script></body></html>
