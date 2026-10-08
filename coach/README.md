@@ -120,7 +120,7 @@ After a change, raise the version in `.claude-plugin/plugin.json`, run `claude p
 git ls-files -co --exclude-standard | zip -q ../dist/coach-<version>.zip -@
 ```
 
-What the desktop app draws and refuses is in [SPIKES.md](SPIKES.md): a thin or very wide image does not draw, a long text line wraps to two lines, a truncated one ends in `…`, so rules are built from short dash pieces.
+What the desktop app draws and refuses, and how the engine behaves, is in [NOTES.md](NOTES.md).
 
 ## Attribution
 
