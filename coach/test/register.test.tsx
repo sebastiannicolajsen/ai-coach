@@ -119,6 +119,8 @@ describe('feedback model', () => {
     expect(box.value.prefs.settings.model).toBe('sonnet')
     expect((await run('model')).text).toContain('Sonnet 5.5')
     expect((await run('model opus')).text).toBe('Feedback model: Opus 5.5.')
+    expect((await run('model haiku-5.5')).text).toBe('Feedback model: Haiku 5.5.')
+    expect(box.value.prefs.settings.model).toBe('haiku-5.5')
   })
 })
 
@@ -126,7 +128,7 @@ describe('help', () => {
   test('/coach help lists every command, the model switch included', async ($, on) => {
     harness(on, { prefs: prefs(5) })
     const r = (await $.command.run({ command: 'coach', args: 'help', origin: { kind: 'composer' }, presentation: {} } as never)) as { text: string }
-    for (const part of ['/coach model haiku · sonnet · opus', '/coach preview on', '/coach why', '/coach on · /coach off']) {
+    for (const part of ['/coach model haiku · haiku-5.5 · sonnet · opus', '/coach preview on', '/coach why', '/coach on · /coach off']) {
       expect(r.text).toContain(part)
     }
   })

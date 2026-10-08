@@ -20,7 +20,7 @@ import { makeOwnCheck } from './own'
 import { blockedBecause, cadenceAllows, isFaded, isQuietPhase, recordShown } from './fade'
 import { analyseTurn, notePrompt, writeBand } from './haiku'
 import { MOVE_CAPTION, classifyMove } from './moves'
-import { gapNames, gapTemplate, missingFrom } from './gaps'
+import { freshGaps, gapNames, gapTemplate, missingFrom } from './gaps'
 import { noteKey } from './notes'
 import { cut, isVerbatim, staticBand } from './validate'
 
@@ -83,9 +83,14 @@ export async function onPrompt($: Dollar, text: string) {
     return
   }
   if (mv.note) await applyNote($, text, turn, { text: mv.note, kind: NOTE_KIND[mv.note] ?? null })
-  // A short instruction missing two or more basics gets its note and template at once, by rule.
-  const gaps = mv.move === 'brief' || mv.caption === 'starting new work' ? missingFrom(text) : []
-  if (gaps.length >= 2 && !mv.note) {
+  // A short instruction missing what its kind of request needs gets its note and template at once, by rule;
+  // the note names only what was not already named on an earlier prompt.
+  const missing = mv.move === 'brief' || mv.caption === 'starting new work' ? missingFrom(text) : []
+  const earlier = Object.entries((await $.get()).rowNotes.user)
+    .filter(([k, n]) => k !== noteKey(text) && n.gap)
+    .map(([, n]) => n.gap!)
+  const gaps = freshGaps(missing, earlier)
+  if (gaps.length > 0 && !mv.note) {
     await upsertUserNote($, noteKey(text), { gap: gapNames(gaps), turn })
     await set($, 'pendingSuggest', { template: gapTemplate(text, gaps), kind: 'brief_gap' })
     await addTrace($, 'gaps', true, `missing ${gapNames(gaps)}`)
@@ -171,11 +176,18 @@ export async function showSuggestion($: Dollar, attempt = 0) {
 const RETRY_MS = 4000
 
 export async function onTurnComplete($: Dollar, answer: string, isAnswer: boolean) {
+  await catchUpOnPrompt($)
   await dispatch($, { type: 'turn_complete', ownPending: (await $.get()).ownCheck !== null })
   await set($, 'moveNote', '')
   await set($, 'lastAnswer', answer.slice(0, LIMITS.windowText))
   const prompt = (await $.get()).lastPrompt
   await $.patch('fresh', f => [...f, heads(prompt), heads(answer)].filter(Boolean).slice(-6))
+  // In preview the step's own suggestions show the moment the reply ends; the analysis replaces them with
+  // specific ones when it finds something. So a slow, skipped or failed analysis never leaves the band empty.
+  const now = await $.get()
+  if (now.prefs.settings.preview && !now.focus && !now.ownCheck && !now.band) {
+    await showBand($, { ...staticBand(now.station), source: 'fallback' })
+  }
   if (!isAnswer) return
   const prefs = (await $.get()).prefs
   const turn = (await $.get()).turnIndex
@@ -187,6 +199,24 @@ export async function onTurnComplete($: Dollar, answer: string, isAnswer: boolea
 
 const MAX_CHECK = 2
 const CHECK_CHARS = 24
+
+// The very first prompt of a chat can reach the engine before the coach has started, so prompt.submit never
+// runs for it. When the reply ends and the latest prompt has no record, read it from the conversation and
+// process it now: its step, feedback and template.
+async function catchUpOnPrompt($: Dollar) {
+  try {
+    // Slash commands and the engine's own markup are no prompts of the person's.
+    const isPrompt = (t: string) => t.trim() !== '' && !t.trim().startsWith('/') && !t.includes('<command-')
+    const last = (await $.session.messages()).filter(m => m.role === 'user' && isPrompt(m.text)).at(-1)
+    if (!last) return
+    const known = (await $.get()).rowNotes.user[noteKey(last.text)]
+    if (known) return
+    await addTrace($, 'move', true, 'caught up on a prompt the coach had not seen')
+    await onPrompt($, last.text)
+  } catch {
+    // Nothing to catch up on.
+  }
+}
 
 export async function runAnalysis($: Dollar, turn: number) {
   const input = await turnInput($)

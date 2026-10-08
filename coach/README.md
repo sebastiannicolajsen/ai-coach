@@ -59,7 +59,7 @@ After every reply from Claude the step line says Review: it is your turn to chec
 | `/coach` | Open the pane |
 | `/coach on` · `/coach off` | Turn the coach on or off, for every chat |
 | `/coach preview on` · `off` | Show every finding from the first session (for testing and demos); plain `/coach preview` toggles |
-| `/coach model haiku` · `sonnet` · `opus` | Pick the model that writes the feedback |
+| `/coach model haiku` · `haiku-5.5` · `sonnet` · `opus` | Pick the model that writes the feedback |
 | `/coach model` | Show which model runs now |
 | `/coach why` | The last analysis: which calls ran, what came back and why anything was dropped |
 | `/coach settings` | Open the pane at the settings |
@@ -69,23 +69,24 @@ After every reply from Claude the step line says Review: it is your turn to chec
 
 ## Feedback model and cost
 
-The feedback runs on **Haiku 4.5** by default. Switch with `/coach model sonnet` or `/coach model opus`, or in the pane under *Feedback model*. Larger models are slower and cost more:
+The feedback runs on **Haiku 5.5** by default. Switch with `/coach model haiku`, `sonnet` or `opus`, or in the pane under *Feedback model*. Haiku 5.5 is the fastest and cheapest; larger models are slower and cost more:
 
 | Model | Input | Output | Cache write | Cache read |
 |---|---|---|---|---|
 | Haiku 4.5 | $1 | $5 | $1.25 | $0.10 |
+| Haiku 5.5 | $0.10 | $0.50 | $0.125 | $0.01 |
 | Sonnet 5.5 | $2 | $10 | $2.50 | $0.10 |
 | Opus 5.5 | $4 | $20 | $5 | $0.20 |
 
-Prices per million tokens, from the [Anthropic pricing page](https://platform.claude.com/docs/en/about-claude/pricing) on 2026-10-08; they live in `hooks/config.ts`.
+Prices per million tokens (Haiku 5.5 for prompts up to 100,000 tokens, which covers every coach call), from the [Anthropic pricing page](https://platform.claude.com/docs/en/about-claude/pricing) on 2026-10-08; they live in `hooks/config.ts`.
 
-The Coach menu shows the coach's own cost as its share of the session, for example `Coach 2% of this session`; the pane adds the model, `Coach 2% of this session · Haiku 4.5`.
+The Coach menu shows the coach's own cost as its share of the session, for example `Coach 2% of this session`; the pane adds the model, `Coach 2% of this session · Haiku 5.5`.
 
 ## Settings
 
 In the pane (`/coach`):
 
-- **Feedback model**: Haiku 4.5 (default), Sonnet 5.5 or Opus 5.5.
+- **Feedback model**: Haiku 5.5 (default), Haiku 4.5, Sonnet 5.5 or Opus 5.5.
 - **Coach checks**: every turn (default), every 3rd turn, or on focus only.
 - **Pause pushes for a check**: off by default; asked once on the first push.
 - **Start quietly**: on by default. The first session then shows only the chapter lines and the step line; sessions two and three allow one set of suggestions per five turns; from session four, behaviours you already show stop being coached. Off is the same as `/coach preview on`.

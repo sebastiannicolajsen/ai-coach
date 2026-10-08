@@ -664,3 +664,28 @@ describe('preview always shows the step suggestions', () => {
     expect(f.state.band).toBeNull()
   })
 })
+
+describe('first prompt and instant suggestions', () => {
+  test('a prompt the coach never saw is caught up on when the reply ends', async () => {
+    const f = makeFake({ station: 'plan', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, preview: true } }) })
+    f.messages = [
+      { role: 'user', text: '/coach preview on' },
+      { role: 'user', text: 'Hi, I need help with an analysis for our bakery' },
+      { role: 'assistant', text: 'Sure, what data do you have?' },
+    ]
+    f.replies.push(answered({ card: {}, flags: [], finding: null }))
+    await onTurnComplete(f.ctx, 'Sure, what data do you have?', true)
+    await f.flush()
+    const note = f.state.rowNotes.user[noteKey('Hi, I need help with an analysis for our bakery')]
+    expect(note?.move).toBe('plan')
+    expect(note?.gap).toBeDefined()
+    expect(f.state.rowNotes.user[noteKey('/coach preview on')]).toBeUndefined()
+  })
+
+  test('in preview the step suggestions show at once, before any analysis, even when the turn is not an answer', async () => {
+    const f = makeFake({ station: 'brief', turnIndex: 2, lastPrompt: 'x', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, preview: true } }) })
+    await onTurnComplete(f.ctx, '', false)
+    expect(f.state.band?.station).toBe('review')
+    expect(f.requests.length).toBe(0)
+  })
+})

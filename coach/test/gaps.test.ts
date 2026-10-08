@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { gapNames, gapTemplate, missingFrom } from '../hooks/gaps'
+import { freshGaps, gapNames, gapTemplate, missingFrom, requestKind } from '../hooks/gaps'
 
 describe('gaps in a short instruction', () => {
   test('a vague request misses the basics', () => {
     const gaps = missingFrom('Okay I want help reviewing a data set for some sales')
     expect(gaps).toContain('question')
-    expect(gaps).toContain('audience')
-    expect(gapNames(gaps)).toBe('question, which data, audience')
+    expect(gaps).not.toContain('audience')
+    expect(gapNames(gaps)).toBe('question, which data')
   })
 
   test('a full brief misses nothing worth saying', () => {
@@ -29,5 +29,26 @@ describe('gaps depend on the kind of request', () => {
   })
   test('an analysis is', () => {
     expect(missingFrom('I want help analysing something')).toContain('data')
+  })
+})
+
+describe('gaps fit the request and are not repeated', () => {
+  test('a pitch is asked for its reader and purpose, never a deadline', () => {
+    const gaps = missingFrom('Hi there I need help with my new sales pitch')
+    expect(requestKind('Hi there I need help with my new sales pitch')).toBe('writing')
+    expect(gaps).toEqual(['audience', 'goal'])
+  })
+  test('a pitch that names its reader only lacks the goal', () => {
+    expect(missingFrom('Help me with a pitch for the client')).toEqual(['goal'])
+  })
+  test('no request is asked for a deadline', () => {
+    for (const t of ['help me analyse our sales data', 'Write an email', 'Do something with this']) expect(missingFrom(t)).not.toContain('deadline')
+  })
+  test('a vague general request needs two gaps before a note', () => {
+    expect(missingFrom('Fix the login bug in the table view')).toEqual([])
+  })
+  test('what was named on an earlier prompt is not named again', () => {
+    expect(freshGaps(['question', 'data'], ['question, which data'])).toEqual([])
+    expect(freshGaps(['audience', 'goal'], ['question, which data', 'audience'])).toEqual(['goal'])
   })
 })

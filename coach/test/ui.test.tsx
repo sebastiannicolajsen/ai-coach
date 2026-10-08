@@ -452,7 +452,7 @@ describe('pane', () => {
     expect((await ui.find({ type: 'Text', text: 'Plan' }))?.props.color).toBeUndefined()
     for (const t of ['THIS CONVERSATION', 'STUCK?', 'SETTINGS']) expect(await ui.find({ type: 'Text', text: t })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Q3 churn analysis for the steering group' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'Coach <1% of this session · Haiku 4.5' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Coach <1% of this session · Haiku 5.5' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Based on the AI Fluency Framework by Dakan, Feller and Anthropic, CC BY-NC-SA 4.0.' })).toBeDefined()
     expect(await ui.find({ key: 'starter-3' })).toBeDefined()
     expect(await ui.find({ key: 'ask' })).toBeDefined()

@@ -28,7 +28,7 @@ export type CoachCadence = 'every' | 'third' | 'focus'
 export type CoachPausePushes = 'unset' | 'on' | 'off'
 
 // Which model writes the coach's feedback.
-export type CoachModel = 'haiku' | 'sonnet' | 'opus'
+export type CoachModel = 'haiku' | 'haiku-5.5' | 'sonnet' | 'opus'
 
 export type CoachSettings = {
   model: CoachModel

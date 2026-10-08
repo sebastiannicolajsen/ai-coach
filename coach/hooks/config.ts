@@ -82,7 +82,7 @@ export const STATION_FRAMEWORK: Record<CoachStation, string> = {
 export const ATTRIBUTION = 'Based on the AI Fluency Framework by Dakan, Feller and Anthropic, CC BY-NC-SA 4.0.'
 
 export const DEFAULT_SETTINGS: CoachSettings = {
-  model: 'haiku',
+  model: 'haiku-5.5',
   cadence: 'every',
   pausePushes: 'unset',
   labels: true,
@@ -91,9 +91,11 @@ export const DEFAULT_SETTINGS: CoachSettings = {
 }
 
 // The models the feedback can run on, by their full ids so the price is the right one. Prices per million
-// tokens from https://platform.claude.com/docs/en/about-claude/pricing (read 2026-10-08).
+// tokens from https://platform.claude.com/docs/en/about-claude/pricing (read 2026-10-08); ids from the models overview.
 export const COACH_MODELS: Record<CoachModel, { id: string; label: string; timeoutMs: number; price: Price }> = {
   haiku: { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', timeoutMs: 8000, price: { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 } },
+  // Haiku 5.5 is priced by prompt length; the coach's prompts stay far below the 100,000-token step.
+  'haiku-5.5': { id: 'claude-haiku-5-5', label: 'Haiku 5.5', timeoutMs: 8000, price: { input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01 } },
   sonnet: { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5', timeoutMs: 15000, price: { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.1 } },
   opus: { id: 'claude-opus-5-5', label: 'Opus 5.5', timeoutMs: 25000, price: { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 } },
 }

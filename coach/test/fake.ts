@@ -26,6 +26,8 @@ export type Fake = {
   askAnswer: { value: string | Error }
   box: { text: string }
   store: Map<string, unknown>
+  // The conversation $.session.messages() answers.
+  messages: { role: 'user' | 'assistant'; text: string }[]
   flush: () => Promise<void>
 }
 
@@ -45,6 +47,7 @@ export function makeFake(over: Partial<CoachState> = {}): Fake {
     askAnswer: { value: 'ok' as string | Error },
     box: { text: '' },
     store: new Map<string, unknown>(),
+    messages: [] as { role: 'user' | 'assistant'; text: string }[],
   }
   const ctx = {
     get: async () => f.state,
@@ -96,7 +99,7 @@ export function makeFake(over: Partial<CoachState> = {}): Fake {
       usage: async () => ({ cost: { usd: 1.48 } }),
       authorize: async () => null,
       surface: async () => 'terminal',
-      messages: async () => [],
+      messages: async () => f.messages,
     },
   }
   const flush = async () => {

@@ -1,0 +1,413 @@
+date,shop,product,category,channel,units,revenue_dkk,cost_dkk
+2025-01-28,Aarhus C,Croissant,pastry,wolt,211,4642,1477
+2025-01-28,Aarhus C,Fastelavnsbolle,cake,store,447,15645,6258
+2025-01-28,Aarhus C,Glutenfri brød,bread,store,27,1296,783
+2025-01-28,Aarhus C,Hindbærsnitte,cake,wolt,66,1848,660
+2025-01-28,Aarhus C,Kaffe,drinks,store,464,13920,2784
+2025-01-28,Aarhus C,Kanelsnegl,pastry,store,197,5122,1576
+2025-01-28,Aarhus C,Rugbrød,bread,store,182,5824,2002
+2025-01-28,Aarhus C,Sandwich,lunch,store,132,8580,4092
+2025-01-28,Aarhus C,Smoothie,drinks,store,28,1260,672
+2025-01-28,Aarhus C,Spandauer,pastry,store,152,3648,1368
+2025-01-28,Aarhus C,Surdejsbolle,bread,store,259,2331,777
+2025-01-28,Aarhus C,Tebirkes,pastry,store,139,2502,834
+2025-01-28,Frederiksbjerg,Croissant,pastry,store,246,5412,1722
+2025-01-28,Frederiksbjerg,Fastelavnsbolle,cake,wolt,413,14455,5782
+2025-01-28,Frederiksbjerg,Glutenfri brød,bread,store,20,960,580
+2025-01-28,Frederiksbjerg,Hindbærsnitte,cake,store,61,1708,610
+2025-01-28,Frederiksbjerg,Kaffe,drinks,wolt,361,10830,2166
+2025-01-28,Frederiksbjerg,Kanelsnegl,pastry,store,232,6032,1856
+2025-01-28,Frederiksbjerg,Rugbrød,bread,store,204,6528,2244
+2025-01-28,Frederiksbjerg,Sandwich,lunch,store,143,9295,4433
+2025-01-28,Frederiksbjerg,Smoothie,drinks,store,32,1440,768
+2025-01-28,Frederiksbjerg,Spandauer,pastry,store,122,2928,1098
+2025-01-28,Frederiksbjerg,Surdejsbolle,bread,store,313,2817,939
+2025-01-28,Frederiksbjerg,Tebirkes,pastry,store,200,3600,1200
+2025-01-28,Trøjborg,Croissant,pastry,store,302,6644,2114
+2025-01-28,Trøjborg,Fastelavnsbolle,cake,store,377,13195,5278
+2025-01-28,Trøjborg,Glutenfri brød,bread,store,25,1200,725
+2025-01-28,Trøjborg,Hindbærsnitte,cake,wolt,59,1652,590
+2025-01-28,Trøjborg,Kaffe,drinks,store,406,12180,2436
+2025-01-28,Trøjborg,Kanelsnegl,pastry,wolt,200,5200,1600
+2025-01-28,Trøjborg,Rugbrød,bread,store,210,6720,2310
+2025-01-28,Trøjborg,Sandwich,lunch,store,117,7605,3627
+2025-01-28,Trøjborg,Smoothie,drinks,wolt,36,1620,864
+2025-01-28,Trøjborg,Spandauer,pastry,store,137,3288,1233
+2025-01-28,Trøjborg,Surdejsbolle,bread,wolt,254,2286,762
+2025-01-28,Trøjborg,Tebirkes,pastry,wolt,175,3150,1050
+2025-02-28,Aarhus C,Croissant,pastry,store,300,6600,2100
+2025-02-28,Aarhus C,Fastelavnsbolle,cake,store,343,12005,4802
+2025-02-28,Aarhus C,Glutenfri brød,bread,wolt,24,1152,696
+2025-02-28,Aarhus C,Hindbærsnitte,cake,store,53,1484,530
+2025-02-28,Aarhus C,Kaffe,drinks,store,436,13080,2616
+2025-02-28,Aarhus C,Kanelsnegl,pastry,store,239,6214,1912
+2025-02-28,Aarhus C,Rugbrød,bread,store,181,5792,1991
+2025-02-28,Aarhus C,Sandwich,lunch,wolt,150,9750,4650
+2025-02-28,Aarhus C,Smoothie,drinks,store,36,1620,864
+2025-02-28,Aarhus C,Spandauer,pastry,wolt,173,4152,1557
+2025-02-28,Aarhus C,Surdejsbolle,bread,store,247,2223,741
+2025-02-28,Aarhus C,Tebirkes,pastry,wolt,162,2916,972
+2025-02-28,Frederiksbjerg,Croissant,pastry,wolt,275,6050,1925
+2025-02-28,Frederiksbjerg,Fastelavnsbolle,cake,store,321,11235,4494
+2025-02-28,Frederiksbjerg,Glutenfri brød,bread,store,26,1248,754
+2025-02-28,Frederiksbjerg,Hindbærsnitte,cake,store,70,1960,700
+2025-02-28,Frederiksbjerg,Kaffe,drinks,wolt,501,15030,3006
+2025-02-28,Frederiksbjerg,Kanelsnegl,pastry,wolt,194,5044,1552
+2025-02-28,Frederiksbjerg,Rugbrød,bread,wolt,259,8288,2849
+2025-02-28,Frederiksbjerg,Sandwich,lunch,store,160,10400,4960
+2025-02-28,Frederiksbjerg,Smoothie,drinks,store,28,1260,672
+2025-02-28,Frederiksbjerg,Spandauer,pastry,wolt,124,2976,1116
+2025-02-28,Frederiksbjerg,Surdejsbolle,bread,wolt,287,2583,861
+2025-02-28,Frederiksbjerg,Tebirkes,pastry,store,188,3384,1128
+2025-02-28,Trøjborg,Croissant,pastry,wolt,237,5214,1659
+2025-02-28,Trøjborg,Fastelavnsbolle,cake,store,362,12670,5068
+2025-02-28,Trøjborg,Glutenfri brød,bread,store,29,1392,841
+2025-02-28,Trøjborg,Hindbærsnitte,cake,store,49,1372,490
+2025-02-28,Trøjborg,Kaffe,drinks,store,363,10890,2178
+2025-02-28,Trøjborg,Kanelsnegl,pastry,store,226,5876,1808
+2025-02-28,Trøjborg,Rugbrød,bread,store,237,7584,2607
+2025-02-28,Trøjborg,Sandwich,lunch,store,151,9815,4681
+2025-02-28,Trøjborg,Smoothie,drinks,store,35,1575,840
+2025-02-28,Trøjborg,Spandauer,pastry,store,144,3456,1296
+2025-02-28,Trøjborg,Surdejsbolle,bread,wolt,252,2268,756
+2025-02-28,Trøjborg,Tebirkes,pastry,wolt,186,3348,1116
+2025-03-15,Aarhus C,Glutenfri brød,bread,catering,300,12000,8700
+2025-03-15,Aarhus C,Hindbærsnitte,cake,catering,900,18000,9000
+2025-03-28,Aarhus C,Croissant,pastry,store,257,5654,1799
+2025-03-28,Aarhus C,Glutenfri brød,bread,store,26,1248,754
+2025-03-28,Aarhus C,Hindbærsnitte,cake,store,65,1820,650
+2025-03-28,Aarhus C,Kaffe,drinks,store,440,13200,2640
+2025-03-28,Aarhus C,Kanelsnegl,pastry,store,237,6162,1896
+2025-03-28,Aarhus C,Rugbrød,bread,store,260,8320,2860
+2025-03-28,Aarhus C,Sandwich,lunch,store,141,9165,4371
+2025-03-28,Aarhus C,Smoothie,drinks,store,39,1755,936
+2025-03-28,Aarhus C,Spandauer,pastry,store,161,3864,1449
+2025-03-28,Aarhus C,Surdejsbolle,bread,store,249,2241,747
+2025-03-28,Aarhus C,Tebirkes,pastry,store,145,2610,870
+2025-03-28,Frederiksbjerg,Croissant,pastry,store,257,5654,1799
+2025-03-28,Frederiksbjerg,Glutenfri brød,bread,store,29,1392,841
+2025-03-28,Frederiksbjerg,Hindbærsnitte,cake,store,63,1764,630
+2025-03-28,Frederiksbjerg,Kaffe,drinks,store,374,11220,2244
+2025-03-28,Frederiksbjerg,Kanelsnegl,pastry,store,200,5200,1600
+2025-03-28,Frederiksbjerg,Rugbrød,bread,wolt,252,8064,2772
+2025-03-28,Frederiksbjerg,Sandwich,lunch,store,141,9165,4371
+2025-03-28,Frederiksbjerg,Smoothie,drinks,store,34,1530,816
+2025-03-28,Frederiksbjerg,Spandauer,pastry,store,165,3960,1485
+2025-03-28,Frederiksbjerg,Surdejsbolle,bread,store,293,2637,879
+2025-03-28,Frederiksbjerg,Tebirkes,pastry,store,171,3078,1026
+2025-03-28,Trøjborg,Croissant,pastry,wolt,296,6512,2072
+2025-03-28,Trøjborg,Glutenfri brød,bread,store,24,1152,696
+2025-03-28,Trøjborg,Hindbærsnitte,cake,wolt,67,1876,670
+2025-03-28,Trøjborg,Kaffe,drinks,wolt,392,11760,2352
+2025-03-28,Trøjborg,Kanelsnegl,pastry,store,263,6838,2104
+2025-03-28,Trøjborg,Rugbrød,bread,store,189,6048,2079
+2025-03-28,Trøjborg,Sandwich,lunch,store,131,8515,4061
+2025-03-28,Trøjborg,Smoothie,drinks,store,39,1755,936
+2025-03-28,Trøjborg,Spandauer,pastry,store,178,4272,1602
+2025-03-28,Trøjborg,Surdejsbolle,bread,store,354,3186,1062
+2025-03-28,Trøjborg,Tebirkes,pastry,store,200,3600,1200
+2025-04-28,Aarhus C,Croissant,pastry,store,283,6226,1981
+2025-04-28,Aarhus C,Glutenfri brød,bread,store,25,1200,725
+2025-04-28,Aarhus C,Hindbærsnitte,cake,store,68,1904,680
+2025-04-28,Aarhus C,Kaffe,drinks,wolt,450,13500,2700
+2025-04-28,Aarhus C,Kanelsnegl,pastry,store,269,6994,2152
+2025-04-28,Aarhus C,Rugbrød,bread,store,214,6848,2354
+2025-04-28,Aarhus C,Sandwich,lunch,store,128,8320,3968
+2025-04-28,Aarhus C,Smoothie,drinks,store,31,1395,744
+2025-04-28,Aarhus C,Spandauer,pastry,store,146,3504,1314
+2025-04-28,Aarhus C,Surdejsbolle,bread,wolt,260,2340,780
+2025-04-28,Aarhus C,Tebirkes,pastry,store,146,2628,876
+2025-04-28,Frederiksbjerg,Croissant,pastry,wolt,217,4774,1519
+2025-04-28,Frederiksbjerg,Glutenfri brød,bread,wolt,25,1200,725
+2025-04-28,Frederiksbjerg,Hindbærsnitte,cake,store,66,1848,660
+2025-04-28,Frederiksbjerg,Kaffe,drinks,store,440,13200,2640
+2025-04-28,Frederiksbjerg,Kanelsnegl,pastry,store,287,7462,2296
+2025-04-28,Frederiksbjerg,Rugbrød,bread,store,256,8192,2816
+2025-04-28,Frederiksbjerg,Sandwich,lunch,store,158,10270,4898
+2025-04-28,Frederiksbjerg,Smoothie,drinks,store,38,1710,912
+2025-04-28,Frederiksbjerg,Spandauer,pastry,store,121,2904,1089
+2025-04-28,Frederiksbjerg,Surdejsbolle,bread,store,344,3096,1032
+2025-04-28,Frederiksbjerg,Tebirkes,pastry,wolt,177,3186,1062
+2025-04-28,Trøjborg,Croissant,pastry,store,256,5632,1792
+2025-04-28,Trøjborg,Glutenfri brød,bread,store,28,1344,812
+2025-04-28,Trøjborg,Hindbærsnitte,cake,wolt,54,1512,540
+2025-04-28,Trøjborg,Kaffe,drinks,store,429,12870,2574
+2025-04-28,Trøjborg,Kanelsnegl,pastry,wolt,206,5356,1648
+2025-04-28,Trøjborg,Rugbrød,bread,store,218,6976,2398
+2025-04-28,Trøjborg,Sandwich,lunch,store,113,7345,3503
+2025-04-28,Trøjborg,Smoothie,drinks,store,40,1800,960
+2025-04-28,Trøjborg,Spandauer,pastry,store,151,3624,1359
+2025-04-28,Trøjborg,Surdejsbolle,bread,store,313,2817,939
+2025-04-28,Trøjborg,Tebirkes,pastry,store,180,3240,1080
+2025-05-28,Aarhus C,Croissant,pastry,wolt,260,5720,1820
+2025-05-28,Aarhus C,Glutenfri brød,bread,store,27,1296,783
+2025-05-28,Aarhus C,Hindbærsnitte,cake,store,51,1428,510
+2025-05-28,Aarhus C,Kaffe,drinks,store,499,14970,2994
+2025-05-28,Aarhus C,Kanelsnegl,pastry,store,280,7280,2240
+2025-05-28,Aarhus C,Rugbrød,bread,store,242,7744,2662
+2025-05-28,Aarhus C,Sandwich,lunch,store,166,10790,5146
+2025-05-28,Aarhus C,Smoothie,drinks,store,31,1395,744
+2025-05-28,Aarhus C,Spandauer,pastry,store,167,4008,1503
+2025-05-28,Aarhus C,Surdejsbolle,bread,store,286,2574,858
+2025-05-28,Aarhus C,Tebirkes,pastry,store,166,2988,996
+2025-05-28,Frederiksbjerg,Croissant,pastry,store,254,5588,1778
+2025-05-28,Frederiksbjerg,Glutenfri brød,bread,store,23,1104,667
+2025-05-28,Frederiksbjerg,Hindbærsnitte,cake,store,65,1820,650
+2025-05-28,Frederiksbjerg,Kaffe,drinks,store,422,12660,2532
+2025-05-28,Frederiksbjerg,Kanelsnegl,pastry,store,240,6240,1920
+2025-05-28,Frederiksbjerg,Rugbrød,bread,store,179,5728,1969
+2025-05-28,Frederiksbjerg,Sandwich,lunch,store,164,10660,5084
+2025-05-28,Frederiksbjerg,Smoothie,drinks,store,29,1305,696
+2025-05-28,Frederiksbjerg,Spandauer,pastry,wolt,160,3840,1440
+2025-05-28,Frederiksbjerg,Surdejsbolle,bread,wolt,280,2520,840
+2025-05-28,Frederiksbjerg,Tebirkes,pastry,store,193,3474,1158
+2025-05-28,Trøjborg,Croissant,pastry,wolt,280,6160,1960
+2025-05-28,Trøjborg,Glutenfri brød,bread,store,23,1104,667
+2025-05-28,Trøjborg,Hindbærsnitte,cake,wolt,57,1596,570
+2025-05-28,Trøjborg,Kaffe,drinks,store,354,10620,2124
+2025-05-28,Trøjborg,Kanelsnegl,pastry,store,259,6734,2072
+2025-05-28,Trøjborg,Rugbrød,bread,store,220,7040,2420
+2025-05-28,Trøjborg,Sandwich,lunch,store,120,7800,3720
+2025-05-28,Trøjborg,Smoothie,drinks,store,28,1260,672
+2025-05-28,Trøjborg,Spandauer,pastry,store,124,2976,1116
+2025-05-28,Trøjborg,Surdejsbolle,bread,store,292,2628,876
+2025-05-28,Trøjborg,Tebirkes,pastry,wolt,164,2952,984
+2025-06-15,Aarhus C,Glutenfri brød,bread,catering,300,12000,8700
+2025-06-15,Aarhus C,Hindbærsnitte,cake,catering,900,18000,9000
+2025-06-28,Aarhus C,Croissant,pastry,store,235,5170,1645
+2025-06-28,Aarhus C,Glutenfri brød,bread,wolt,21,1008,609
+2025-06-28,Aarhus C,Hindbærsnitte,cake,store,71,1988,710
+2025-06-28,Aarhus C,Kaffe,drinks,store,500,15000,3000
+2025-06-28,Aarhus C,Kanelsnegl,pastry,store,198,5148,1584
+2025-06-28,Aarhus C,Rugbrød,bread,store,237,7584,2607
+2025-06-28,Aarhus C,Sandwich,lunch,store,147,9555,4557
+2025-06-28,Aarhus C,Smoothie,drinks,wolt,100,4500,2400
+2025-06-28,Aarhus C,Spandauer,pastry,store,176,4224,1584
+2025-06-28,Aarhus C,Surdejsbolle,bread,store,322,2898,966
+2025-06-28,Aarhus C,Tebirkes,pastry,store,199,3582,1194
+2025-06-28,Frederiksbjerg,Croissant,pastry,store,237,5214,1659
+2025-06-28,Frederiksbjerg,Glutenfri brød,bread,wolt,21,1008,609
+2025-06-28,Frederiksbjerg,Hindbærsnitte,cake,store,54,1512,540
+2025-06-28,Frederiksbjerg,Kaffe,drinks,store,393,11790,2358
+2025-06-28,Frederiksbjerg,Kanelsnegl,pastry,store,252,6552,2016
+2025-06-28,Frederiksbjerg,Rugbrød,bread,store,248,7936,2728
+2025-06-28,Frederiksbjerg,Sandwich,lunch,store,126,8190,3906
+2025-06-28,Frederiksbjerg,Smoothie,drinks,store,96,4320,2304
+2025-06-28,Frederiksbjerg,Spandauer,pastry,store,157,3768,1413
+2025-06-28,Frederiksbjerg,Surdejsbolle,bread,wolt,318,2862,954
+2025-06-28,Frederiksbjerg,Tebirkes,pastry,store,166,2988,996
+2025-06-28,Trøjborg,Croissant,pastry,store,252,5544,1764
+2025-06-28,Trøjborg,Glutenfri brød,bread,wolt,22,1056,638
+2025-06-28,Trøjborg,Hindbærsnitte,cake,store,54,1512,540
+2025-06-28,Trøjborg,Kaffe,drinks,store,403,12090,2418
+2025-06-28,Trøjborg,Kanelsnegl,pastry,store,200,5200,1600
+2025-06-28,Trøjborg,Rugbrød,bread,wolt,211,6752,2321
+2025-06-28,Trøjborg,Sandwich,lunch,store,123,7995,3813
+2025-06-28,Trøjborg,Smoothie,drinks,store,116,5220,2784
+2025-06-28,Trøjborg,Spandauer,pastry,store,151,3624,1359
+2025-06-28,Trøjborg,Surdejsbolle,bread,store,356,3204,1068
+2025-06-28,Trøjborg,Tebirkes,pastry,wolt,203,3654,1218
+2025-07-28,Aarhus C,Croissant,pastry,store,308,6776,2156
+2025-07-28,Aarhus C,Glutenfri brød,bread,store,20,960,580
+2025-07-28,Aarhus C,Hindbærsnitte,cake,wolt,49,1372,490
+2025-07-28,Aarhus C,Kaffe,drinks,store,412,12360,2472
+2025-07-28,Aarhus C,Kanelsnegl,pastry,wolt,192,4992,1536
+2025-07-28,Aarhus C,Rugbrød,bread,store,179,5728,1969
+2025-07-28,Aarhus C,Sandwich,lunch,wolt,148,9620,4588
+2025-07-28,Aarhus C,Smoothie,drinks,wolt,131,5895,3144
+2025-07-28,Aarhus C,Spandauer,pastry,store,143,3432,1287
+2025-07-28,Aarhus C,Surdejsbolle,bread,store,340,3060,1020
+2025-07-28,Aarhus C,Tebirkes,pastry,store,152,2736,912
+2025-07-28,Frederiksbjerg,Croissant,pastry,wolt,224,4928,1568
+2025-07-28,Frederiksbjerg,Glutenfri brød,bread,store,25,1200,725
+2025-07-28,Frederiksbjerg,Hindbærsnitte,cake,wolt,66,1848,660
+2025-07-28,Frederiksbjerg,Kaffe,drinks,store,441,13230,2646
+2025-07-28,Frederiksbjerg,Kanelsnegl,pastry,store,215,5590,1720
+2025-07-28,Frederiksbjerg,Rugbrød,bread,store,252,8064,2772
+2025-07-28,Frederiksbjerg,Sandwich,lunch,store,129,8385,3999
+2025-07-28,Frederiksbjerg,Smoothie,drinks,store,131,5895,3144
+2025-07-28,Frederiksbjerg,Spandauer,pastry,store,125,3000,1125
+2025-07-28,Frederiksbjerg,Surdejsbolle,bread,store,255,2295,765
+2025-07-28,Frederiksbjerg,Tebirkes,pastry,store,141,2538,846
+2025-07-28,Trøjborg,Croissant,pastry,store,208,4576,1456
+2025-07-28,Trøjborg,Glutenfri brød,bread,store,28,1344,812
+2025-07-28,Trøjborg,Hindbærsnitte,cake,store,51,1428,510
+2025-07-28,Trøjborg,Kaffe,drinks,store,418,12540,2508
+2025-07-28,Trøjborg,Kanelsnegl,pastry,store,212,5512,1696
+2025-07-28,Trøjborg,Rugbrød,bread,store,228,7296,2508
+2025-07-28,Trøjborg,Sandwich,lunch,store,116,7540,3596
+2025-07-28,Trøjborg,Smoothie,drinks,store,127,5715,3048
+2025-07-28,Trøjborg,Spandauer,pastry,store,128,3072,1152
+2025-07-28,Trøjborg,Surdejsbolle,bread,wolt,355,3195,1065
+2025-07-28,Trøjborg,Tebirkes,pastry,store,170,3060,1020
+2025-08-28,Aarhus C,Croissant,pastry,store,215,4730,1505
+2025-08-28,Aarhus C,Glutenfri brød,bread,store,29,1392,841
+2025-08-28,Aarhus C,Hindbærsnitte,cake,wolt,71,1988,710
+2025-08-28,Aarhus C,Kaffe,drinks,wolt,450,13500,2700
+2025-08-28,Aarhus C,Kanelsnegl,pastry,store,223,5798,1784
+2025-08-28,Aarhus C,Rugbrød,bread,store,240,7680,2640
+2025-08-28,Aarhus C,Sandwich,lunch,store,164,10660,5084
+2025-08-28,Aarhus C,Smoothie,drinks,store,111,4995,2664
+2025-08-28,Aarhus C,Spandauer,pastry,wolt,147,3528,1323
+2025-08-28,Aarhus C,Surdejsbolle,bread,wolt,267,2403,801
+2025-08-28,Aarhus C,Tebirkes,pastry,store,169,3042,1014
+2025-08-28,Frederiksbjerg,Croissant,pastry,wolt,231,5082,1617
+2025-08-28,Frederiksbjerg,Glutenfri brød,bread,store,25,1200,725
+2025-08-28,Frederiksbjerg,Hindbærsnitte,cake,store,54,1512,540
+2025-08-28,Frederiksbjerg,Kaffe,drinks,store,402,12060,2412
+2025-08-28,Frederiksbjerg,Kanelsnegl,pastry,store,265,6890,2120
+2025-08-28,Frederiksbjerg,Rugbrød,bread,store,198,6336,2178
+2025-08-28,Frederiksbjerg,Sandwich,lunch,store,154,10010,4774
+2025-08-28,Frederiksbjerg,Smoothie,drinks,store,110,4950,2640
+2025-08-28,Frederiksbjerg,Spandauer,pastry,wolt,161,3864,1449
+2025-08-28,Frederiksbjerg,Surdejsbolle,bread,store,312,2808,936
+2025-08-28,Frederiksbjerg,Tebirkes,pastry,store,178,3204,1068
+2025-08-28,Trøjborg,Croissant,pastry,wolt,259,5698,1813
+2025-08-28,Trøjborg,Glutenfri brød,bread,store,27,1296,783
+2025-08-28,Trøjborg,Hindbærsnitte,cake,wolt,67,1876,670
+2025-08-28,Trøjborg,Kaffe,drinks,wolt,336,10080,2016
+2025-08-28,Trøjborg,Kanelsnegl,pastry,store,199,5174,1592
+2025-08-28,Trøjborg,Rugbrød,bread,store,250,8000,2750
+2025-08-28,Trøjborg,Sandwich,lunch,store,129,8385,3999
+2025-08-28,Trøjborg,Smoothie,drinks,wolt,115,5175,2760
+2025-08-28,Trøjborg,Spandauer,pastry,store,137,3288,1233
+2025-08-28,Trøjborg,Surdejsbolle,bread,store,346,3114,1038
+2025-08-28,Trøjborg,Tebirkes,pastry,store,136,2448,816
+2025-09-15,Aarhus C,Glutenfri brød,bread,catering,300,12000,8700
+2025-09-15,Aarhus C,Hindbærsnitte,cake,catering,900,18000,9000
+2025-09-28,Aarhus C,Croissant,pastry,store,248,5456,1736
+2025-09-28,Aarhus C,Glutenfri brød,bread,store,22,1056,638
+2025-09-28,Aarhus C,Hindbærsnitte,cake,store,63,1764,630
+2025-09-28,Aarhus C,Kaffe,drinks,wolt,488,14640,2928
+2025-09-28,Aarhus C,Kanelsnegl,pastry,store,218,5668,1744
+2025-09-28,Aarhus C,Rugbrød,bread,store,258,8256,2838
+2025-09-28,Aarhus C,Sandwich,lunch,store,152,9880,4712
+2025-09-28,Aarhus C,Smoothie,drinks,store,32,1440,768
+2025-09-28,Aarhus C,Spandauer,pastry,wolt,167,4008,1503
+2025-09-28,Aarhus C,Surdejsbolle,bread,store,254,2286,762
+2025-09-28,Aarhus C,Tebirkes,pastry,store,152,2736,912
+2025-09-28,Frederiksbjerg,Croissant,pastry,store,282,6204,1974
+2025-09-28,Frederiksbjerg,Glutenfri brød,bread,wolt,21,1008,609
+2025-09-28,Frederiksbjerg,Hindbærsnitte,cake,wolt,70,1960,700
+2025-09-28,Frederiksbjerg,Kaffe,drinks,wolt,348,10440,2088
+2025-09-28,Frederiksbjerg,Kanelsnegl,pastry,wolt,226,5876,1808
+2025-09-28,Frederiksbjerg,Rugbrød,bread,store,176,5632,1936
+2025-09-28,Frederiksbjerg,Sandwich,lunch,wolt,161,10465,4991
+2025-09-28,Frederiksbjerg,Smoothie,drinks,store,33,1485,792
+2025-09-28,Frederiksbjerg,Spandauer,pastry,store,146,3504,1314
+2025-09-28,Frederiksbjerg,Surdejsbolle,bread,store,288,2592,864
+2025-09-28,Frederiksbjerg,Tebirkes,pastry,store,192,3456,1152
+2025-09-28,Trøjborg,Croissant,pastry,store,234,5148,1638
+2025-09-28,Trøjborg,Glutenfri brød,bread,store,23,1104,667
+2025-09-28,Trøjborg,Hindbærsnitte,cake,store,58,1624,580
+2025-09-28,Trøjborg,Kaffe,drinks,wolt,428,12840,2568
+2025-09-28,Trøjborg,Kanelsnegl,pastry,store,264,6864,2112
+2025-09-28,Trøjborg,Rugbrød,bread,store,249,7968,2739
+2025-09-28,Trøjborg,Sandwich,lunch,store,163,10595,5053
+2025-09-28,Trøjborg,Smoothie,drinks,store,31,1395,744
+2025-09-28,Trøjborg,Spandauer,pastry,store,131,3144,1179
+2025-09-28,Trøjborg,Surdejsbolle,bread,wolt,276,2484,828
+2025-09-28,Trøjborg,Tebirkes,pastry,store,179,3222,1074
+2025-10-03,Trøjborg,Sandwich,lunch,store,-40,-2600,-1240
+2025-10-28,Aarhus C,Croissant,pastry,wolt,286,6292,2002
+2025-10-28,Aarhus C,Glutenfri brød,bread,store,29,1392,841
+2025-10-28,Aarhus C,Hindbærsnitte,cake,wolt,70,1960,700
+2025-10-28,Aarhus C,Kaffe,drinks,store,468,14040,2808
+2025-10-28,Aarhus C,Kanelsnegl,pastry,store,200,5200,1600
+2025-10-28,Aarhus C,Rugbrød,bread,wolt,254,8128,2794
+2025-10-28,Aarhus C,Sandwich,lunch,store,166,10790,5146
+2025-10-28,Aarhus C,Smoothie,drinks,store,41,1845,984
+2025-10-28,Aarhus C,Spandauer,pastry,wolt,178,4272,1602
+2025-10-28,Aarhus C,Surdejsbolle,bread,store,251,2259,753
+2025-10-28,Aarhus C,Tebirkes,pastry,store,193,3474,1158
+2025-10-28,Frederiksbjerg,Croissant,pastry,store,247,5434,1729
+2025-10-28,Frederiksbjerg,Glutenfri brød,bread,store,21,1008,609
+2025-10-28,Frederiksbjerg,Hindbærsnitte,cake,store,66,1848,660
+2025-10-28,Frederiksbjerg,Kaffe,drinks,store,424,12720,2544
+2025-10-28,Frederiksbjerg,Kanelsnegl,pastry,store,218,5668,1744
+2025-10-28,Frederiksbjerg,Rugbrød,bread,store,204,6528,2244
+2025-10-28,Frederiksbjerg,Sandwich,lunch,wolt,112,7280,3472
+2025-10-28,Frederiksbjerg,Smoothie,drinks,store,28,1260,672
+2025-10-28,Frederiksbjerg,Spandauer,pastry,wolt,127,3048,1143
+2025-10-28,Frederiksbjerg,Surdejsbolle,bread,wolt,303,2727,909
+2025-10-28,Frederiksbjerg,Tebirkes,pastry,wolt,162,2916,972
+2025-10-28,Trøjborg,Croissant,pastry,store,247,5434,1729
+2025-10-28,Trøjborg,Glutenfri brød,bread,store,26,1248,754
+2025-10-28,Trøjborg,Hindbærsnitte,cake,store,51,1428,510
+2025-10-28,Trøjborg,Kaffe,drinks,store,401,12030,2406
+2025-10-28,Trøjborg,Kanelsnegl,pastry,store,204,5304,1632
+2025-10-28,Trøjborg,Rugbrød,bread,store,198,6336,2178
+2025-10-28,Trøjborg,Sandwich,lunch,wolt,164,10660,5084
+2025-10-28,Trøjborg,Smoothie,drinks,store,41,1845,984
+2025-10-28,Trøjborg,Spandauer,pastry,wolt,162,3888,1458
+2025-10-28,Trøjborg,Surdejsbolle,bread,store,323,2907,969
+2025-10-28,Trøjborg,Tebirkes,pastry,store,165,2970,990
+2025-11-15,Aarhus C,Glutenfri brød,bread,catering,300,12000,8700
+2025-11-15,Aarhus C,Hindbærsnitte,cake,catering,900,18000,9000
+2025-11-28,Aarhus C,Croissant,pastry,store,216,4752,1512
+2025-11-28,Aarhus C,Glutenfri brød,bread,store,28,1344,812
+2025-11-28,Aarhus C,Hindbærsnitte,cake,store,70,1960,700
+2025-11-28,Aarhus C,Kaffe,drinks,store,410,12300,2460
+2025-11-28,Aarhus C,Kanelsnegl,pastry,wolt,258,6708,2064
+2025-11-28,Aarhus C,Rugbrød,bread,store,260,8320,2860
+2025-11-28,Aarhus C,Sandwich,lunch,store,146,9490,4526
+2025-11-28,Aarhus C,Smoothie,drinks,store,41,1845,984
+2025-11-28,Aarhus C,Spandauer,pastry,store,133,3192,1197
+2025-11-28,Aarhus C,Surdejsbolle,bread,wolt,262,2358,786
+2025-11-28,Aarhus C,Tebirkes,pastry,store,186,3348,1116
+2025-11-28,Frederiksbjerg,Croissant,pastry,store,213,4686,1491
+2025-11-28,Frederiksbjerg,Glutenfri brød,bread,store,20,960,580
+2025-11-28,Frederiksbjerg,Hindbærsnitte,cake,store,59,1652,590
+2025-11-28,Frederiksbjerg,Kaffe,drinks,wolt,341,10230,2046
+2025-11-28,Frederiksbjerg,Kanelsnegl,pastry,store,256,6656,2048
+2025-11-28,Frederiksbjerg,Rugbrød,bread,store,217,6944,2387
+2025-11-28,Frederiksbjerg,Sandwich,lunch,store,126,8190,3906
+2025-11-28,Frederiksbjerg,Smoothie,drinks,store,28,1260,672
+2025-11-28,Frederiksbjerg,Spandauer,pastry,store,132,3168,1188
+2025-11-28,Frederiksbjerg,Surdejsbolle,bread,store,327,2943,981
+2025-11-28,Frederiksbjerg,Tebirkes,pastry,wolt,160,2880,960
+2025-11-28,Trøjborg,Croissant,pastry,wolt,259,5698,1813
+2025-11-28,Trøjborg,Glutenfri brød,bread,wolt,21,1008,609
+2025-11-28,Trøjborg,Hindbærsnitte,cake,store,70,1960,700
+2025-11-28,Trøjborg,Kaffe,drinks,store,476,14280,2856
+2025-11-28,Trøjborg,Kanelsnegl,pastry,store,213,5538,1704
+2025-11-28,Trøjborg,Rugbrød,bread,store,224,7168,2464
+2025-11-28,Trøjborg,Sandwich,lunch,wolt,118,7670,3658
+2025-11-28,Trøjborg,Smoothie,drinks,wolt,29,1305,696
+2025-11-28,Trøjborg,Spandauer,pastry,store,138,3312,1242
+2025-11-28,Trøjborg,Surdejsbolle,bread,store,351,3159,1053
+2025-11-28,Trøjborg,Tebirkes,pastry,store,149,2682,894
+2025-12-20,Frederiksbjerg,Spandauer,pastry,wolt,180,4320,
+2025-12-28,Aarhus C,Croissant,pastry,store,228,5016,1596
+2025-12-28,Aarhus C,Glutenfri brød,bread,store,28,1344,812
+2025-12-28,Aarhus C,Hindbærsnitte,cake,wolt,70,1960,700
+2025-12-28,Aarhus C,Kaffe,drinks,store,404,12120,2424
+2025-12-28,Aarhus C,Kanelsnegl,pastry,wolt,215,5590,1720
+2025-12-28,Aarhus C,Rugbrød,bread,wolt,248,7936,2728
+2025-12-28,Aarhus C,Sandwich,lunch,store,112,7280,3472
+2025-12-28,Aarhus C,Smoothie,drinks,store,40,1800,960
+2025-12-28,Aarhus C,Spandauer,pastry,store,177,4248,1593
+2025-12-28,Aarhus C,Surdejsbolle,bread,store,283,2547,849
+2025-12-28,Aarhus C,Tebirkes,pastry,store,153,2754,918
+2025-12-28,Frederiksbjerg,Croissant,pastry,wolt,217,4774,1519
+2025-12-28,Frederiksbjerg,Glutenfri brød,bread,wolt,21,1008,609
+2025-12-28,Frederiksbjerg,Hindbærsnitte,cake,store,48,1344,480
+2025-12-28,Frederiksbjerg,Kaffe,drinks,wolt,421,12630,2526
+2025-12-28,Frederiksbjerg,Kanelsnegl,pastry,wolt,262,6812,2096
+2025-12-28,Frederiksbjerg,Rugbrød,bread,store,225,7200,2475
+2025-12-28,Frederiksbjerg,Sandwich,lunch,store,126,8190,3906
+2025-12-28,Frederiksbjerg,Smoothie,drinks,store,34,1530,816
+2025-12-28,Frederiksbjerg,Spandauer,pastry,store,173,4152,1557
+2025-12-28,Frederiksbjerg,Surdejsbolle,bread,store,312,2808,936
+2025-12-28,Frederiksbjerg,Tebirkes,pastry,store,138,2484,828
+2025-12-28,Trøjborg,Croissant,pastry,wolt,228,5016,1596
+2025-12-28,Trøjborg,Glutenfri brød,bread,store,21,1008,609
+2025-12-28,Trøjborg,Hindbærsnitte,cake,wolt,50,1400,500
+2025-12-28,Trøjborg,Kaffe,drinks,store,462,13860,2772
+2025-12-28,Trøjborg,Kanelsnegl,pastry,wolt,194,5044,1552
+2025-12-28,Trøjborg,Rugbrød,bread,store,209,6688,2299
+2025-12-28,Trøjborg,Sandwich,lunch,store,163,10595,5053
+2025-12-28,Trøjborg,Smoothie,drinks,wolt,30,1350,720
+2025-12-28,Trøjborg,Spandauer,pastry,store,141,3384,1269
+2025-12-28,Trøjborg,Surdejsbolle,bread,wolt,343,3087,1029
+2025-12-28,Trøjborg,Tebirkes,pastry,store,167,3006,1002

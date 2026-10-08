@@ -21,7 +21,7 @@ export const set = <K extends keyof CoachState>($: Dollar, key: K, value: CoachS
 
 // Every coach call runs on the model chosen in the settings, with that model's time limit.
 export const complete = ($: Dollar): Complete => async req => {
-  const m = COACH_MODELS[(await $.get()).prefs.settings.model] ?? COACH_MODELS.haiku
+  const m = COACH_MODELS[(await $.get()).prefs.settings.model] ?? COACH_MODELS['haiku-5.5']
   return $.model.complete({ ...req, model: m.id, timeoutMs: m.timeoutMs })
 }
 
@@ -59,7 +59,7 @@ export const saveSettings = ($: Dollar, patch: Partial<CoachSettings>) =>
   savePrefs($, p => ({ ...p, settings: { ...p.settings, ...patch } }))
 
 export async function recordUsage($: Dollar, usage: ModelUsage | null) {
-  const m = COACH_MODELS[(await $.get()).prefs.settings.model] ?? COACH_MODELS.haiku
+  const m = COACH_MODELS[(await $.get()).prefs.settings.model] ?? COACH_MODELS['haiku-5.5']
   if (usage) await $.patch('cost', c => addCost(c, usage, m.price))
 }
 

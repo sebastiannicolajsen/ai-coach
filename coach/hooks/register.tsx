@@ -30,7 +30,7 @@ export const HELP = [
   '/coach  open the pane: the steps, a Stuck? chat, settings',
   '/coach on · /coach off  turn the coach on or off (for every chat)',
   '/coach preview on · off  show every finding from the first session',
-  '/coach model haiku · sonnet · opus  pick the model that writes the feedback (Haiku 4.5 is the default)',
+  '/coach model haiku · haiku-5.5 · sonnet · opus  pick the model that writes the feedback (Haiku 5.5 is the default)',
   '/coach model  show which model runs now',
   '/coach why  the last analysis: what ran, what came back, what was dropped',
   '/coach settings  open the pane at the settings',
@@ -108,7 +108,7 @@ async function init($: EngineInterface) {
       await $.command.register({
         name: 'coach',
         description: 'Coach: on/off, pane, ask, settings, about',
-        argumentHint: '[help|pane|ask|settings|model [haiku|sonnet|opus]|preview [on|off]|why|gallery|about|on|off]',
+        argumentHint: '[help|pane|ask|settings|model [haiku|haiku-5.5|sonnet|opus]|preview [on|off]|why|gallery|about|on|off]',
         immediate: true,
       })
     } catch {
@@ -159,12 +159,13 @@ async function runCommand($: EngineInterface, args: string) {
     }
     case 'model':
     case 'model haiku':
+    case 'model haiku-5.5':
     case 'model sonnet':
     case 'model opus': {
       const name = arg.split(' ')[1]
       if (!isCoachModel(name)) {
-        const now = COACH_MODELS[(await c.get()).prefs.settings.model] ?? COACH_MODELS.haiku
-        return { text: `Feedback model: ${now.label}. Change it with /coach model haiku, sonnet or opus.` }
+        const now = COACH_MODELS[(await c.get()).prefs.settings.model] ?? COACH_MODELS['haiku-5.5']
+        return { text: `Feedback model: ${now.label}. Change it with /coach model haiku, haiku-5.5, sonnet or opus.` }
       }
       await saveSettings(c, { model: name })
       return { text: `Feedback model: ${COACH_MODELS[name].label}.` }

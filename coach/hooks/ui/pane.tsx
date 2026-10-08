@@ -143,7 +143,7 @@ export async function renderPane($: Dollar, e: Parameters<Dollar['ui']['resolve'
       {await chatView(ui, $)}
       {await settingsView(ui, $)}
       <Box flexDirection="column">
-        <Text dimColor>{costLine(st.cost.usd, st.usage.convUsd, (COACH_MODELS[st.prefs.settings.model] ?? COACH_MODELS.haiku).label)}</Text>
+        <Text dimColor>{costLine(st.cost.usd, st.usage.convUsd, (COACH_MODELS[st.prefs.settings.model] ?? COACH_MODELS['haiku-5.5']).label)}</Text>
         <Text dimColor>{ATTRIBUTION}</Text>
       </Box>
     </Box>
