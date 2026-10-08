@@ -1,6 +1,6 @@
 {
-  "name": "implement-ai-coach",
-  "description": "Implement AI fluency mods for Claude Code.",
+  "name": "ai-coach",
+  "description": "AI fluency mods for Claude Code.",
   "owner": {
     "name": "Sebastian Mateos Nicolajsen"
   },
