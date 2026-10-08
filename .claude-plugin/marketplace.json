@@ -1,0 +1,14 @@
+{
+  "name": "implement-ai-coach",
+  "description": "Implement AI fluency mods for Claude Code.",
+  "owner": {
+    "name": "Sebastian Mateos Nicolajsen"
+  },
+  "plugins": [
+    {
+      "name": "coach",
+      "source": "./coach",
+      "description": "AI fluency coach: shows where you are in the loop with Claude and helps you take the next step well."
+    }
+  ]
+}
