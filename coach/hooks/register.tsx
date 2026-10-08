@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import {
+  addTrace,
   dispatch,
   loadPrefs,
   openPane,
@@ -12,13 +13,31 @@ import {
 } from './actions'
 import { INITIAL } from './initial'
 import type { Ctx } from './ctx'
-import { EDIT_TOOLS } from './config'
+import { EDIT_TOOLS, PLAN_FILE_RE, COACH_MODELS, isCoachModel } from './config'
+import { formatTrace } from './trace'
 import { classifyCommand, onPrompt, onPush, onTurnComplete } from './flow'
 import { openAsk } from './meta'
 import { renderAbovePrompt } from './ui/band'
 import { withSurface } from './ui/glyph'
 import { assistantLabel, userLabel } from './ui/labels'
+import { renderGallery } from './ui/gallery'
+import { renderCommandOutput } from './ui/output'
 import { renderPane } from './ui/pane'
+
+// What /coach help prints, one command per line.
+export const HELP = [
+  'Commands',
+  '/coach  open the pane: the steps, a Stuck? chat, settings',
+  '/coach on · /coach off  turn the coach on or off (for every chat)',
+  '/coach preview on · off  show every finding from the first session',
+  '/coach model haiku · sonnet · opus  pick the model that writes the feedback (Haiku 4.5 is the default)',
+  '/coach model  show which model runs now',
+  '/coach why  the last analysis: what ran, what came back, what was dropped',
+  '/coach settings  open the pane at the settings',
+  '/coach ask  open the Stuck? chat',
+  '/coach about  what the coach reads and stores',
+  '/coach gallery  drawing test for the surface you are on',
+].join('\n')
 
 export const ABOUT = [
   "Reads: your prompts, Claude's answers and tool names in this session, only to follow the loop.",
@@ -26,8 +45,6 @@ export const ABOUT = [
   'Keeps in memory: a small context card for this session only, cleared when it ends.',
   'Stores on disk: counters and settings only (on or off, sessions, dismissals), never message text.',
 ].join('\n')
-
-const TOAST = 'The coach follows your loop with Claude. Tap a station to focus it. /coach to turn it off.'
 
 const short = (e: Record<string, unknown>): string =>
   String(e.file_path ?? e.command ?? e.pattern ?? e.path ?? '').slice(0, 60)
@@ -91,7 +108,7 @@ async function init($: EngineInterface) {
       await $.command.register({
         name: 'coach',
         description: 'Coach: on/off, pane, ask, settings, about',
-        argumentHint: '[pane|ask|settings|preview|about|on|off]',
+        argumentHint: '[help|pane|ask|settings|model [haiku|sonnet|opus]|preview [on|off]|why|gallery|about|on|off]',
         immediate: true,
       })
     } catch {
@@ -105,8 +122,7 @@ async function init($: EngineInterface) {
   }
   if (!(await c.get()).sessionCounted) {
     await c.patch('sessionCounted', () => true)
-    const p = await savePrefs(c, q => ({ ...q, sessions: q.sessions + 1 }))
-    if (p.sessions === 1 && p.enabled) c.ui.toast(TOAST)
+    await savePrefs(c, q => ({ ...q, sessions: q.sessions + 1 }))
   }
 }
 
@@ -129,13 +145,34 @@ async function runCommand($: EngineInterface, args: string) {
   const c = shim($)
   const arg = args.trim().toLowerCase()
   switch (arg) {
+    case 'help':
+      return { text: HELP }
     case 'about':
       return { text: ABOUT }
-    case 'preview': {
-      const next = !(await c.get()).prefs.settings.preview
+    case 'preview':
+    case 'preview on':
+    case 'preview off': {
+      // "on" and "off" set it outright; plain "preview" toggles.
+      const next = arg === 'preview on' ? true : arg === 'preview off' ? false : !(await c.get()).prefs.settings.preview
       await saveSettings(c, { preview: next })
       return { text: next ? 'Preview on: every finding shows.' : 'Preview off.' }
     }
+    case 'model':
+    case 'model haiku':
+    case 'model sonnet':
+    case 'model opus': {
+      const name = arg.split(' ')[1]
+      if (!isCoachModel(name)) {
+        const now = COACH_MODELS[(await c.get()).prefs.settings.model] ?? COACH_MODELS.haiku
+        return { text: `Feedback model: ${now.label}. Change it with /coach model haiku, sonnet or opus.` }
+      }
+      await saveSettings(c, { model: name })
+      return { text: `Feedback model: ${COACH_MODELS[name].label}.` }
+    }
+    case 'gallery':
+      return { text: 'Gallery' }
+    case 'why':
+      return { text: formatTrace((await c.get()).trace) }
     case 'pane':
       await turnOnIfOff($)
       await openPane(c)
@@ -160,6 +197,17 @@ async function runCommand($: EngineInterface, args: string) {
   }
 }
 
+// A failed hook leaves a line in /coach why and the debug log instead of vanishing.
+async function report($: EngineInterface, hook: string, err: unknown) {
+  const message = err instanceof Error ? err.message : String(err)
+  $.ui.log(`${hook} failed: ${message}`, { to: 'debug' })
+  try {
+    await addTrace(shim($), 'error', false, `${hook}: ${message}`)
+  } catch {
+    // Nothing left to report to.
+  }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await init($)
@@ -171,9 +219,13 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     try {
       await init($)
+      // Settings live in the store, shared by every chat: read them again, so a change made in another chat
+      // (preview, on/off, cadence) applies here from the next message.
+      await loadPrefs(shim($))
       if ((await isOn($)) && isPersonPrompt(e.origin.kind)) await onPrompt(shim($), e.text)
-    } catch {
-      // The coach never gets in the way of a prompt.
+    } catch (err) {
+      // The coach never gets in the way of a prompt, but the failure shows in /coach why.
+      await report($, 'prompt.submit', err)
     }
     return next(e)
   }).catch(($, e, next) => next(e))
@@ -189,12 +241,16 @@ export const register: Register = on => {
         if (kind) {
           const denial = await onPush(shim($), kind, String(args.command ?? ''))
           if (denial) return { deny: denial }
+        } else if (name === 'ExitPlanMode') {
+          await dispatch(shim($), { type: 'plan_approved' })
         } else if (EDIT_TOOLS.includes(name)) {
-          await dispatch(shim($), { type: 'acting' })
+          const isPlan = PLAN_FILE_RE.test(String(args.file_path ?? ''))
+          await dispatch(shim($), { type: isPlan ? 'plan_written' : 'acting' })
         }
       }
-    } catch {
+    } catch (err) {
       // Observation only: a failure here never blocks the call.
+      await report($, 'tool.call', err)
     }
     return next(e)
   }).catch(($, e, next) => next(e))
@@ -203,8 +259,8 @@ export const register: Register = on => {
     try {
       await init($)
       if ((await isOn($)) && !e.agentId) await onTurnComplete(shim($), e.answer, e.reason === 'answer')
-    } catch {
-      // Silent.
+    } catch (err) {
+      await report($, 'turn.complete', err)
     }
     return next(e)
   })
@@ -216,12 +272,17 @@ export const register: Register = on => {
     return renderAbovePrompt(shim($), e, next as never)
   })
 
+  on('ui.render', { component: 'CommandOutput', props: { command: 'coach' } }, ($, e) =>
+    e.props.args.trim() === 'gallery' ? renderGallery(shim($), e) : renderCommandOutput(shim($), e, e.props.text),
+  )
+
   on('ui.render', { component: 'Pane', requestId: 'coach' }, ($, e) => renderPane(shim($), e))
 
+  // isExpanded is not a reason to skip: the desktop app draws every row in full, so it is always true there.
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
     const c = shim($)
     const prefs = (await read($, state)).prefs
-    if (!prefs.enabled || !prefs.settings.labels || e.props.isExpanded || !isPersonPrompt(e.props.origin.kind)) {
+    if (!prefs.enabled || !prefs.settings.labels || !isPersonPrompt(e.props.origin.kind)) {
       return next(e)
     }
     return userLabel(c, withSurface(c.ui.resolve(e), e.surface) as never, { requestId: e.requestId, text: e.props.text }, await next(e))

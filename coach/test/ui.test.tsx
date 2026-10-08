@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'claude-code/testing'
 import type { On, RenderSurface } from 'claude-code'
-import type { CoachBand, CoachState } from '../types'
+import type { CoachBand, CoachRowNotes, CoachState } from '../types'
 import { INITIAL } from '../hooks/initial'
 import { makeOwnCheck } from '../hooks/own'
 import { noteKey } from '../hooks/notes'
+import { formatTrace } from '../hooks/trace'
 import { harness } from './seed'
 
 const BAND: CoachBand = {
@@ -40,6 +41,13 @@ const PANE_PROPS = {
 const USER_PROPS = { text: 'Why is it 18.4%?', origin: { kind: 'composer' }, isExpanded: false } as const
 const ANSWER_PROPS = { text: 'Churn is 18.4% and SMB is the driver.', isFirstOfReply: true }
 
+const userNote = (text: string, over: object = {}): CoachRowNotes => ({
+  user: { [noteKey(text)]: { move: 'review' as const, note: 'Questioned the result', turn: 1, ...over } },
+  reply: null,
+})
+
+const hidden = (boxes: { props: Record<string, unknown> }[]) => boxes.some(b => b.props.display === 'none')
+
 const SURFACES = ['terminal', 'desktop'] as const
 type Surface = (typeof SURFACES)[number]
 
@@ -70,32 +78,33 @@ describe('coach band', () => {
     expect(buttons.map((b: { key?: string }) => b.key).sort()).toEqual(['menu', 'menu-off', 'pick-brief', 'pick-own', 'pick-plan', 'pick-review'])
     expect(await ui.find({ key: 'menu-settings' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'Focus on' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '≈$0.02 this session' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Coach <1% of this session' })).toBeDefined()
     await ui.press({ key: 'pick-review' })
     expect(await ui.find({ type: 'Text', text: 'Focus · Review' })).toBeDefined()
     expect(await ui.find({ key: 'pick-review' })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: /claims in the last answer/ })).toBeDefined()
+    expect(await ui.find({ key: 'chip-0' })).toBeDefined()
     await ui.unmount()
   })
 
-  each('a focus band shows even mid-turn, never blank', { prefs: prefs(5), focus: 'brief', band: { ...BAND, station: 'brief', source: 'focus', title: 'Your next prompt could say who it is for.' } }, async (surface, _h, $) => {
+  each('a focus band shows even mid-turn, never blank', { prefs: prefs(5), focus: 'brief', band: { ...BAND, station: 'brief', source: 'focus' } }, async (surface, _h, $) => {
     const ui = await mountBand($, surface, { ...BAND_PROPS, isWorking: true })
-    expect(await ui.find({ type: 'Text', text: 'Your next prompt could say who it is for.' })).toBeDefined()
+    expect(await ui.find({ key: 'chip-0' })).toBeDefined()
     await ui.unmount()
   })
 
-  each('a finding band shows title, source and chips; a chip fills the prompt box', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
+
+  each('a finding band is only its suggestions: a row of chips and a dismiss, no title, quote or step-out line', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
     const ui = await mountBand($, surface)
-    expect(await ui.find({ type: 'Text', text: BAND.title })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '18.4% · Mette' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: "· Claude's last reply" })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: BAND.title })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /18\.4% · Mette/ })).toBeUndefined()
+    expect(await ui.find({ key: 'suggest' })).toBeUndefined()
     expect(await ui.find({ key: 'chip-1' })).toBeDefined()
-    expect(await ui.find({ key: 'suggest' })).toBeDefined()
-    expect(await ui.find({ key: 'ask' })).toBeUndefined()
+    expect(await ui.find({ key: 'dismiss' })).toBeDefined()
     await ui.press({ key: 'chip-0' })
     expect(h.seen.fills).toEqual(['Where does 18.4% come from?'])
     await ui.unmount()
   })
+
 
   each('dismissing hides the band and counts the dismissal', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
     const ui = await mountBand($, surface)
@@ -123,10 +132,13 @@ describe('coach band', () => {
     const ui = await mountBand($, surface)
     expect(await ui.find({ type: 'Text', text: 'This goes to Mette. Three quick checks.' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'git push · email to Mette' })).toBeDefined()
-    expect((await ui.find({ key: 'own-0' }))?.props.label).toBe('☐ Tested myself')
+    expect((await ui.find({ key: 'own-0' }))?.props.label).toBe('Tested myself')
+    expect((await ui.find({ key: 'own-0' }))?.props.plain).toBeUndefined()
     expect((await ui.find({ key: 'own-continue' }))?.props.plain).toBe(true)
     await ui.press({ key: 'own-0' })
-    expect((await ui.find({ key: 'own-0' }))?.props.label).toBe('☑ Tested myself')
+    expect((await ui.find({ key: 'own-0' }))?.props.label).toBe('Tested myself')
+    expect((await ui.find({ key: 'own-0' }))?.props.plain).toBe(true)
+    expect(await ui.find(surface === 'terminal' ? { type: 'Text', text: '✓' } : { type: 'Svg' })).toBeDefined()
     await ui.press({ key: 'own-continue' })
     expect(await ui.find({ key: 'own-0' })).toBeUndefined()
     expect(h.box.value.station).toBe('review')
@@ -146,13 +158,20 @@ describe('coach band', () => {
 const mount = ($: never, surface: RenderSurface, component: string, props: object, requestId?: string) =>
   ($ as { ui: { mount: (t: object) => Promise<any> } }).ui.mount({ plugin: 'coach', surface, component, props, requestId })
 
-const everyNode = (node: unknown, out: { type?: string; props?: Record<string, unknown> }[] = []) => {
+const everyNode = (node: unknown, out: { type?: string; props?: Record<string, unknown>; children?: unknown[] }[] = []) => {
   if (typeof node !== 'object' || node === null) return out
   const n = node as { type?: string; props?: Record<string, unknown>; children?: unknown[] }
   out.push(n)
   for (const c of n.children ?? []) everyNode(c, out)
   return out
 }
+
+// A rule is a clipping row of short dash pieces: no single text that truncates ("…") or wraps (two lines).
+type N = { type?: string; props?: Record<string, unknown>; children?: unknown }
+const pieceRules = (nodes: N[]) =>
+  nodes.filter(n => n.type === 'Box' && n.props?.overflow === 'hidden' && n.props?.flexWrap === 'nowrap' && JSON.stringify(n.children).split('────').length > 10)
+const truncatingDashes = (nodes: N[]) =>
+  nodes.filter(n => n.type === 'Text' && n.props?.wrap === 'truncate' && JSON.stringify(n.children).includes('──'))
 
 describe('visual pass', () => {
   const surfaceWord = (surface: string) => (surface === 'desktop' ? '#B06A12' : 'yellow_FOR_SUBAGENTS_ONLY')
@@ -173,27 +192,19 @@ describe('visual pass', () => {
     await ui.unmount()
   })
 
-  each('finding band: no header row, × on the title row, native chips, rule only above the rail', { prefs: prefs(5), band: BAND }, async (surface, _h, $) => {
+  each('finding band: no header row, × on the title row, native chips, no rule', { prefs: prefs(5), band: BAND }, async (surface, _h, $) => {
     const ui = await mountBand($, surface, { ...BAND_PROPS, bodyColumns: 40 })
     const nodes = everyNode(await ui.drawn())
     expect(nodes.some(n => n.props && 'backgroundColor' in n.props)).toBe(false)
     expect(nodes.some(n => n.props && n.props.bold)).toBe(false)
-    const json = JSON.stringify(await ui.drawn())
-    expect(json.split('─'.repeat(40)).length - 1).toBe(surface === 'terminal' ? 1 : 0)
-    if (surface === 'desktop') expect(json).not.toContain('─')
-    expect(nodes.filter(n => n.type === 'Svg').length).toBe(surface === 'desktop' ? 2 : 0)
+    // No rule in the band: the suggestions and the step line read as one group.
+    expect(pieceRules(nodes)).toHaveLength(0)
+    expect(truncatingDashes(nodes)).toHaveLength(0)
+    expect(nodes.filter(n => n.type === 'Svg' && n.props?.alt === '')).toHaveLength(0)
     expect(JSON.stringify(await ui.drawn())).not.toContain('Focus')
     expect((await ui.find({ key: 'chip-0' }))?.props.plain).toBeUndefined()
     expect((await ui.find({ key: 'dismiss' }))?.props.role).toBe('dismiss')
     expect(await ui.find({ key: 'ask' })).toBeUndefined()
-    if (surface === 'desktop') {
-      const svgs = nodes.filter(n => n.type === 'Svg')
-      const rule = svgs.find(n => n.props?.alt === '')
-      expect(rule).toBeDefined()
-      expect(rule?.props?.width).toBeUndefined()
-      expect(rule?.props?.height).toBe(1)
-      expect(String(rule?.props?.source)).toContain('preserveAspectRatio="none"')
-    }
     await ui.unmount()
   })
 
@@ -214,87 +225,112 @@ describe('visual pass', () => {
     await ui.unmount()
   })
 
-  each('labels keep the active bar coloured and draw no backgrounds', { prefs: prefs(2), notes: { [noteKey('Why is it 18.4%?')]: 'Questioned the result' } }, async (surface, _h, $) => {
+  each('chapter lines keep the active bar coloured and draw no backgrounds or bold', { prefs: prefs(2), rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', USER_PROPS)
     const nodes = everyNode(await ui.drawn())
     expect(nodes.some(n => n.props && 'backgroundColor' in n.props)).toBe(false)
     expect(nodes.some(n => n.props && n.props.bold)).toBe(false)
     expect(nodes.some(n => n.type === 'Svg')).toBe(surface === 'desktop')
-    expect(await ui.find({ type: 'Text', text: '✓ Questioned the result' })).toBeDefined()
-    if (surface === 'terminal') expect(nodes.some(n => n.type === 'Text' && n.props?.color === 'cyan_FOR_SUBAGENTS_ONLY')).toBe(true)
+    expect(await ui.find({ type: 'Text', text: 'Questioned the result' })).toBeDefined()
+    if (surface === 'terminal') expect(nodes.some(n => n.type === 'Text' && n.props?.color === 'yellow_FOR_SUBAGENTS_ONLY')).toBe(true)
     await ui.unmount()
   })
 })
 
 describe('message labels', () => {
-  each('user rows carry Brief and the check note in sessions 1-3', { prefs: prefs(2), notes: { [noteKey('Why is it 18.4%?')]: 'Questioned the result' } }, async (surface, _h, $) => {
+  each('every user row opens with a chapter line: the move in colour, a caption, a rule', { prefs: prefs(2), rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', USER_PROPS)
     expect(await ui.find({ type: 'Text', text: 'Why is it 18.4%?' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'Brief' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '✓ Questioned the result' })).toBeDefined()
-    expect((await ui.findAll({ type: 'Box' })).some((b: { props: Record<string, unknown> }) => b.props.display === 'none')).toBe(false)
+    const word = await ui.find({ type: 'Text', text: 'Review' })
+    expect(word?.props.color).toBe(surface === 'desktop' ? '#B06A12' : 'yellow_FOR_SUBAGENTS_ONLY')
+    expect(await ui.find({ type: 'Text', text: "· checking Claude's result" })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Questioned the result' })).toBeDefined()
+    expect(hidden(await ui.findAll({ type: 'Box' }))).toBe(false)
+    const json = JSON.stringify(await ui.drawn())
+    expect(json).toContain(surface === 'desktop' ? '"type":"Svg"' : '─')
     await ui.unmount()
   })
 
-  each('from session 4 an older row hides its label until hover', { prefs: prefs(5), lastPrompt: 'newer prompt' }, async (surface, _h, $) => {
+  each('a row without data is a Brief: a new instruction', { prefs: prefs(2) }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', USER_PROPS)
-    expect((await ui.findAll({ type: 'Box' })).some((b: { props: Record<string, unknown> }) => b.props.display === 'none')).toBe(true)
+    expect(await ui.find({ type: 'Text', text: 'Brief' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '· a new instruction' })).toBeDefined()
     await ui.unmount()
   })
 
-  each('the latest prompt keeps its label in session 4 and is never written from the render', { prefs: prefs(5), lastPrompt: USER_PROPS.text, turnIndex: 3 }, async (surface, h, $) => {
+  each('an outer step names itself in the caption', { prefs: prefs(2), rowNotes: userNote(USER_PROPS.text, { move: 'own', note: undefined, outer: 'Own · push paused' }) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'UserMessage', USER_PROPS)
+    expect(await ui.find({ type: 'Text', text: 'Own' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '· push paused' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  each('from session 4 an older row keeps its chapter line and hides the note until hover', { prefs: prefs(5), lastPrompt: 'newer prompt', rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'UserMessage', USER_PROPS)
+    expect(await ui.find({ type: 'Text', text: 'Review' })).toBeDefined()
+    expect(hidden(await ui.findAll({ type: 'Box' }))).toBe(true)
+    await ui.unmount()
+  })
+
+  each('the latest prompt keeps its note in session 4 and is never written from the render', { prefs: prefs(5), lastPrompt: USER_PROPS.text, turnIndex: 3, rowNotes: userNote(USER_PROPS.text) }, async (surface, h, $) => {
     const before = JSON.stringify(h.box.value)
     const ui = await mount($, surface, 'UserMessage', USER_PROPS, 'row-9')
-    expect((await ui.findAll({ type: 'Box' })).some((b: { props: Record<string, unknown> }) => b.props.display === 'none')).toBe(false)
+    expect(hidden(await ui.findAll({ type: 'Box' }))).toBe(false)
     await h.clock.advance(1)
     await ui.unmount()
     expect(JSON.stringify(h.box.value)).toBe(before)
   })
 
-  each('a row recorded as older stays hidden until hover', { prefs: prefs(5), lastPrompt: 'something else', turnIndex: 3, rows: { user: 'row-new', reply: '', userTurn: 3, replyTurn: 0 } }, async (surface, _h, $) => {
+  each('a row recorded as older stays hidden until hover', { prefs: prefs(5), lastPrompt: 'something else', turnIndex: 3, rows: { user: 'row-new', reply: '', userTurn: 3, replyTurn: 0 }, rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', USER_PROPS, 'row-old')
-    expect((await ui.findAll({ type: 'Box' })).some((b: { props: Record<string, unknown> }) => b.props.display === 'none')).toBe(true)
+    expect(hidden(await ui.findAll({ type: 'Box' }))).toBe(true)
     await ui.unmount()
   })
 
-  each('prompts from an SDK host are labelled; the row holding the message sets no width', { prefs: prefs(2) }, async (surface, _h, $) => {
+  each('prompts from an SDK host get a chapter line; the Box holding the message sets no width', { prefs: prefs(2) }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', { ...USER_PROPS, origin: { kind: 'sdk' } })
     expect(await ui.find({ type: 'Text', text: 'Brief' })).toBeDefined()
     const boxes: { props: Record<string, unknown> }[] = await ui.findAll({ type: 'Box' })
-    // The engine refuses its own message node under a Box with a width.
     const row = boxes.find(b => typeof b.props.key === 'string' && (b.props.key as string).startsWith('row-'))
     expect(row?.props.width).toBeUndefined()
-    expect(boxes.some(b => b.props.width === '100%')).toBe(true)
+    expect(row?.props.flexDirection).toBe('column')
     await ui.unmount()
   })
 
-  each('from session 4 the latest row keeps its label', { prefs: prefs(5), lastPrompt: USER_PROPS.text }, async (surface, _h, $) => {
-    const ui = await mount($, surface, 'UserMessage', USER_PROPS)
-    expect((await ui.findAll({ type: 'Box' })).some((b: { props: Record<string, unknown> }) => b.props.display === 'none')).toBe(false)
-    await ui.unmount()
-  })
-
-  each('assistant replies carry Review', { prefs: prefs(2), lastAnswer: ANSWER_PROPS.text }, async (surface, _h, $) => {
+  each('a reply is never a step: no Review or Own label, even during an Own check', { prefs: prefs(2), lastAnswer: ANSWER_PROPS.text, ownCheck: OWN }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'AssistantMessage', ANSWER_PROPS)
-    expect(await ui.find({ type: 'Text', text: 'Review' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Review' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'Own' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /Worth checking/ })).toBeUndefined()
     await ui.unmount()
   })
 
-  each('assistant replies carry Own while a check is active', { prefs: prefs(2), lastAnswer: ANSWER_PROPS.text, ownCheck: OWN }, async (surface, _h, $) => {
+  each('the latest reply says what is worth checking, only when there is something', { prefs: prefs(2), lastAnswer: ANSWER_PROPS.text, turnIndex: 2, rowNotes: { user: {}, reply: { turn: 2, check: ['18.4%', 'SMB is the driver'] } } }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'AssistantMessage', ANSWER_PROPS)
-    expect(await ui.find({ type: 'Text', text: 'Own' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Worth checking: 18.4% · SMB is the driver' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  each('claims from an earlier turn are not shown', { prefs: prefs(2), lastAnswer: ANSWER_PROPS.text, turnIndex: 3, rowNotes: { user: {}, reply: { turn: 2, check: ['18.4%'] } } }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'AssistantMessage', ANSWER_PROPS)
+    expect(await ui.find({ type: 'Text', text: /Worth checking/ })).toBeUndefined()
     await ui.unmount()
   })
 
   const skipped: [string, Partial<CoachState>, object][] = [
     ['coach off', { prefs: prefs(2, { enabled: false }) }, USER_PROPS],
     ['labels off', { prefs: prefs(2, { settings: { ...INITIAL.prefs.settings, labels: false } }) }, USER_PROPS],
-    ['expanded row', { prefs: prefs(2) }, { ...USER_PROPS, isExpanded: true }],
     ['notification row', { prefs: prefs(2) }, { ...USER_PROPS, origin: { kind: 'task-notification' } }],
   ]
+  // The desktop app marks every row expanded (it has no compact view), so expanded rows keep their chapter line.
+  each('an expanded row still gets its chapter line', { prefs: prefs(2) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'UserMessage', { ...USER_PROPS, isExpanded: true })
+    expect(await ui.find({ type: 'Text', text: 'Brief' })).toBeDefined()
+    await ui.unmount()
+  })
+
   for (const [name, state, props] of skipped) {
-    each(`no label for: ${name}`, state, async (surface, _h, $) => {
+    each(`no chapter line for: ${name}`, state, async (surface, _h, $) => {
       const ui = await mount($, surface, 'UserMessage', props)
       expect(await ui.find({ type: 'Text', text: 'Brief' })).toBeUndefined()
       await ui.unmount()
@@ -302,42 +338,75 @@ describe('message labels', () => {
   }
 })
 
+describe('the chapter line', () => {
+  each('shows "moved on from Review" when the person left Review', { prefs: prefs(2), rowNotes: userNote(USER_PROPS.text, { move: 'brief', note: undefined, from: 'review' }) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'UserMessage', USER_PROPS)
+    expect(await ui.find({ type: 'Text', text: '· moved on from Review' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Brief' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  each('the chapter line holds move, caption and rule; the ✓ note sits under the bubble', { prefs: prefs(2), rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'UserMessage', USER_PROPS)
+    const tree = await ui.drawn()
+    const nodes = everyNode(tree)
+    const line = nodes.find(n => n.type === 'Box' && n.props?.marginTop === 1)
+    expect(JSON.stringify(line)).not.toContain('Questioned the result')
+    expect(pieceRules(everyNode(line))).toHaveLength(1)
+    expect(truncatingDashes(nodes)).toHaveLength(0)
+    // Placed over the space under the bubble: absolute at the row's bottom right, taking no room.
+    const under = nodes.find(n => n.type === 'Box' && n.props?.position === 'absolute' && JSON.stringify(n).includes('Questioned the result'))
+    expect(under?.props?.bottom).toBe(0)
+    expect(under?.props?.right).toBe(0)
+    await ui.unmount()
+  })
+
+
+
+  each('a gap from the template shows as "Could add" with the comment mark', { prefs: prefs(2), rowNotes: { user: { [noteKey(USER_PROPS.text)]: { move: 'brief', gap: 'question, audience', turn: 0 } }, reply: null } }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'UserMessage', USER_PROPS)
+    expect(await ui.find({ type: 'Text', text: 'Could add: question, audience' })).toBeDefined()
+    await ui.unmount()
+  })
+
+
+  each('an older row keeps the line but its note appears on hover', { prefs: prefs(5), lastPrompt: 'newer prompt', rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'UserMessage', USER_PROPS)
+    const boxes: { props: Record<string, unknown> }[] = await ui.findAll({ type: 'Box' })
+    const note = boxes.find(b => b.props.display === 'none')
+    expect(note).toBeDefined()
+    expect(JSON.stringify(await ui.drawn())).toContain('"hover":{"scope":"row-')
+    expect(await ui.find({ type: 'Text', text: 'Review' })).toBeDefined()
+    await ui.unmount()
+  })
+})
+
 describe('the rule between feedback and rail', () => {
-  const rules = (nodes: { type?: string; props?: Record<string, unknown> }[]) => nodes.filter(n => n.type === 'Svg' && n.props?.alt === '')
-  each('desktop: a 1px Svg exists whenever band content or the fold is shown, never at rest', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
+  each('dismissed suggestions come back from the Coach menu until the next prompt', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
     const ui = await mountBand($, surface)
-    const withBand = everyNode(await ui.drawn())
-    expect(rules(withBand)).toHaveLength(surface === 'desktop' ? 1 : 0)
-    if (surface === 'desktop') expect(rules(withBand)[0]?.props?.height).toBe(1)
     await ui.press({ key: 'dismiss' })
-    expect(rules(everyNode(await ui.drawn()))).toHaveLength(0)
+    expect(await ui.find({ key: 'chip-0' })).toBeUndefined()
     await ui.press({ key: 'menu' })
-    const folded = everyNode(await ui.drawn())
-    expect(rules(folded)).toHaveLength(surface === 'desktop' ? 1 : 0)
-    if (surface === 'terminal') expect(JSON.stringify(await ui.drawn())).toContain('─'.repeat(80))
+    await ui.press({ key: 'menu-restore' })
+    expect(await ui.find({ key: 'chip-0' })).toBeDefined()
+    expect(h.box.value.hiddenBand).toBeNull()
+    await ui.unmount()
+  })
+
+  each('the band draws no rule, with suggestions or with the Focus row open', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
+    const ui = await mountBand($, surface)
+    expect(pieceRules(everyNode(await ui.drawn()))).toHaveLength(0)
+    await ui.press({ key: 'menu' })
+    expect(pieceRules(everyNode(await ui.drawn()))).toHaveLength(0)
     expect(h.box.value.menuOpen).toBe(true)
     await ui.unmount()
   })
 })
 
 describe('what a band is about', () => {
-  each('a static focus band says where it applies', { prefs: prefs(5), focus: 'review', band: { ...BAND, evidence: [], source: 'fallback', title: 'Pick the claims you would check.' } }, async (surface, _h, $) => {
-    const ui = await mountBand($, surface)
-    expect(await ui.find({ type: 'Text', text: "On Claude's last reply" })).toBeDefined()
-    await ui.unmount()
-  })
 
-  each('the reply label says note below only while the band is about that row', { prefs: prefs(5), band: BAND, bandRow: 'reply', lastAnswer: 'Churn is 18.4% and SMB is the driver.', turnIndex: 1 }, async (surface, h, $) => {
-    const props = { text: 'Churn is 18.4% and SMB is the driver.', isFirstOfReply: true }
-    const about = await mount($, surface, 'AssistantMessage', props, 'r1')
-    expect(await about.find({ type: 'Text', text: '· note below' })).toBeDefined()
-    expect((await about.findAll({ type: 'Box' })).some((b: { props: Record<string, unknown> }) => b.props.display === 'none')).toBe(false)
-    await about.unmount()
-    const other = await mount($, surface, 'AssistantMessage', { ...props, text: 'An older reply about something else.' }, 'r0')
-    expect(await other.find({ type: 'Text', text: '· note below' })).toBeUndefined()
-    await other.unmount()
-    expect(h.box.value.bandRow).toBe('reply')
-  })
+
+
 
   each('no suffix without a band', { prefs: prefs(2), band: null, bandRow: 'r1' }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'AssistantMessage', { text: 'x', isFirstOfReply: true }, 'r1')
@@ -351,18 +420,18 @@ describe('the check note on a prompt', () => {
     on('prompt.submit', (_$: unknown, e: { text: string }) => ({ text: e.text }) as never)
     const text = 'Use contract end instead. Go.'
     const ui = await mount($, surface, 'UserMessage', { text, origin: { kind: 'sdk' }, isExpanded: false })
-    expect(await ui.find({ type: 'Text', text: /✓/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'Corrected Claude' })).toBeUndefined()
     await ($ as unknown as { prompt: { submit: (a: object) => Promise<unknown> } }).prompt.submit({ text, wait: false, origin: { kind: 'sdk' } })
     await h.clock.advance(1)
-    expect(await ui.find({ type: 'Text', text: '✓ Corrected Claude' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Corrected Claude' })).toBeDefined()
     expect(h.box.value.turnIndex).toBe(1)
     expect(h.seen.models.length).toBeGreaterThan(0)
     await ui.unmount()
   })
 
-  each('is matched when the row text differs in spacing or case', { prefs: prefs(2), notes: { [noteKey('why is it 18.4%?')]: 'Questioned the result' } }, async (surface, _h, $) => {
+  each('is matched when the row text differs in spacing or case', { prefs: prefs(2), rowNotes: userNote('why is it 18.4%?') }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', { text: '  Why   is it\n18.4%?  ', origin: { kind: 'sdk' }, isExpanded: false })
-    expect(await ui.find({ type: 'Text', text: '✓ Questioned the result' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Questioned the result' })).toBeDefined()
     await ui.unmount()
   })
 })
@@ -383,7 +452,7 @@ describe('pane', () => {
     expect((await ui.find({ type: 'Text', text: 'Plan' }))?.props.color).toBeUndefined()
     for (const t of ['THIS CONVERSATION', 'STUCK?', 'SETTINGS']) expect(await ui.find({ type: 'Text', text: t })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Q3 churn analysis for the steering group' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'Coach ≈$0.02 of $13.97 this session' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Coach <1% of this session · Haiku 4.5' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Based on the AI Fluency Framework by Dakan, Feller and Anthropic, CC BY-NC-SA 4.0.' })).toBeDefined()
     expect(await ui.find({ key: 'starter-3' })).toBeDefined()
     expect(await ui.find({ key: 'ask' })).toBeDefined()
@@ -420,6 +489,52 @@ describe('pane', () => {
     expect(await ui.find({ type: 'Select' })).toBeUndefined()
     await ui.press({ key: 'set-cadence' })
     expect(box.value.prefs.settings.cadence).toBe('third')
+    await ui.unmount()
+  })
+})
+
+describe('command output and first-run line', () => {
+  each('/coach why is drawn as a small table in the coach style', { prefs: prefs(5) }, async (surface, _h, $) => {
+    const text = formatTrace([
+      { turn: 3, call: 'A', ok: true, detail: 'ok · finding unchecked_claim (high) → kept · 0 flags' },
+      { turn: 3, call: 'gate', ok: false, detail: 'unchecked_claim not raised: faded' },
+    ])
+    const ui = await mount($, surface, 'CommandOutput', { command: 'coach', args: 'why', text, isErrored: false })
+    expect(await ui.find({ type: 'Text', text: '· Last analysis' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'unchecked_claim not raised: faded' })).toBeDefined()
+    expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
+    expect(everyNode(await ui.drawn()).some(n => n.props && n.props.bold)).toBe(false)
+    await ui.unmount()
+  })
+
+  // The gallery must validate as one tree on every surface, or it shows nothing at all.
+  each('/coach gallery draws every variant', { prefs: prefs(5) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'CommandOutput', { command: 'coach', args: 'gallery', text: 'coach: Gallery', isErrored: false })
+    for (const label of ['R1', 'R4', 'R8', 'S1', 'S4', 'K1', 'K3', 'C1']) {
+      expect(await ui.find({ type: 'Text', text: label })).toBeDefined()
+    }
+    await ui.unmount()
+  })
+
+  each('other answers are a glyph and dim lines', { prefs: prefs(5) }, async (surface, _h, $) => {
+    const ui = await mount($, surface, 'CommandOutput', { command: 'coach', args: 'off', text: 'Coach off.', isErrored: false })
+    expect(await ui.find({ type: 'Text', text: 'Coach off.' })).toBeDefined()
+    await ui.unmount()
+  })
+
+  each('the first-run line sits in the band until the first Coach press', { prefs: prefs(1) }, async (surface, h, $) => {
+    const ui = await mountBand($, surface)
+    const line = 'The coach follows your loop with Claude. Press Coach to focus on a step.'
+    expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
+    await ui.press({ key: 'menu' })
+    expect(await ui.find({ type: 'Text', text: line })).toBeUndefined()
+    expect(h.box.value.prefs.hintTaps).toBe(1)
+    await ui.unmount()
+  })
+
+  each('no first-run line after three sessions', { prefs: prefs(4) }, async (surface, _h, $) => {
+    const ui = await mountBand($, surface)
+    expect(await ui.find({ type: 'Text', text: /follows your loop/ })).toBeUndefined()
     await ui.unmount()
   })
 })

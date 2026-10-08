@@ -36,10 +36,16 @@ export const formatUsd = (usd: number): string =>
 export const sharePercent = (coach: number, conversation: number): number =>
   conversation > 0 ? Math.round((coach / conversation) * 100) : 0
 
-export function costLine(coachUsd: number, conversationUsd: number | null | undefined, isApprox: boolean): string {
-  const base = `Coach ${isApprox ? '≈' : ''}${formatUsd(coachUsd)}`
-  return typeof conversationUsd === 'number' ? `${base} of ${formatUsd(conversationUsd)} this session` : `${base} this session`
+// The coach's cost as its share of the whole session: "2% of this session", "<1% of this session". Without a
+// session figure there is nothing to share against, so it says the coach's own dollars instead.
+export function shareLine(coachUsd: number, conversationUsd: number | null | undefined): string {
+  if (typeof conversationUsd !== 'number' || conversationUsd <= 0) return `${formatUsd(coachUsd)} so far`
+  const pct = (coachUsd / conversationUsd) * 100
+  return pct > 0 && pct < 1 ? '<1% of this session' : `${Math.round(pct)}% of this session`
 }
 
-export const menuCost = (coachUsd: number, isApprox: boolean): string =>
-  `${isApprox ? '≈' : ''}${formatUsd(coachUsd)} this session`
+export const costLine = (coachUsd: number, conversationUsd: number | null | undefined, model: string): string =>
+  `Coach ${shareLine(coachUsd, conversationUsd)} · ${model}`
+
+export const menuCost = (coachUsd: number, conversationUsd: number | null | undefined): string =>
+  `Coach ${shareLine(coachUsd, conversationUsd)}`

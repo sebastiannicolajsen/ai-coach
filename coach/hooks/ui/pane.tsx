@@ -1,13 +1,15 @@
 import type { ElementTable } from 'claude-code'
-import type { CoachCadence, CoachPausePushes } from '../../types'
+import type { CoachCadence, CoachModel, CoachPausePushes } from '../../types'
 import { type Dollar, saveSettings, savePrefs } from '../actions'
 import { aboutLine } from '../card'
-import { ATTRIBUTION, STARTER_CHIPS, STATIONS, STATION_MEANING, STATION_NAME } from '../config'
+import { ATTRIBUTION, COACH_MODELS, STARTER_CHIPS, STATIONS, STATION_MEANING, STATION_NAME } from '../config'
 import { costLine } from '../cost'
 import { askMeta } from '../meta'
 import { type Ui, glyph, withSurface, wordColor } from './glyph'
 
 type Table = ElementTable<'terminal' | 'desktop' | 'vscode'>
+
+const MODEL_OPTIONS: [CoachModel, string][] = (Object.keys(COACH_MODELS) as CoachModel[]).map(k => [k, COACH_MODELS[k].label])
 
 const CADENCE: [CoachCadence, string][] = [
   ['every', 'Every turn'],
@@ -77,6 +79,7 @@ async function settingsView(ui: Table & Ui, $: Dollar) {
   return (
     <Box flexDirection="column" gap={1}>
       {section(ui, 'Settings')}
+      {settingRow(ui, 'set-model', 'Feedback model', s.model, MODEL_OPTIONS, v => void saveSettings($, { model: v as CoachModel }))}
       {settingRow(ui, 'set-cadence', 'Coach checks', s.cadence, CADENCE, v => void saveSettings($, { cadence: v as CoachCadence }))}
       {settingRow(ui, 'set-pause', 'Pause pushes for a check', s.pausePushes === 'on' ? 'on' : 'off', ONOFF, v => void saveSettings($, { pausePushes: v as CoachPausePushes }))}
       {settingRow(ui, 'set-labels', 'Labels in the chat', s.labels ? 'on' : 'off', [['on', 'On'], ['off', 'Off']], v => void saveSettings($, { labels: v === 'on' }))}
@@ -140,7 +143,7 @@ export async function renderPane($: Dollar, e: Parameters<Dollar['ui']['resolve'
       {await chatView(ui, $)}
       {await settingsView(ui, $)}
       <Box flexDirection="column">
-        <Text dimColor>{costLine(st.cost.usd, st.usage.convUsd, st.usage.isApprox)}</Text>
+        <Text dimColor>{costLine(st.cost.usd, st.usage.convUsd, (COACH_MODELS[st.prefs.settings.model] ?? COACH_MODELS.haiku).label)}</Text>
         <Text dimColor>{ATTRIBUTION}</Text>
       </Box>
     </Box>

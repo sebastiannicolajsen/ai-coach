@@ -5,9 +5,11 @@ export type CoachFlagType = 'new_task' | 'scope_change' | 'share_intent'
 
 export type CoachEvent =
   | { type: 'session_start' }
-  | { type: 'prompt_submit' }
-  | { type: 'turn_complete' }
+  | { type: 'prompt_submit'; move: CoachStation }
+  | { type: 'move'; move: CoachStation }
+  | { type: 'turn_complete'; ownPending?: boolean }
   | { type: 'acting' }
+  | { type: 'plan_written' }
   | { type: 'push' }
   | { type: 'plan_approved' }
   | { type: 'own_done' }
@@ -33,31 +35,32 @@ const go = (m: CoachMachine, station: CoachStation): Transition => ({
   suggest: null,
 })
 
+// The rail says what the person should do now; the person's own move (or a tool) decides it.
 export function step(m: CoachMachine, e: CoachEvent): Transition {
   switch (e.type) {
     case 'session_start':
       return { next: { station: 'plan', focus: null }, suggest: null }
-    case 'prompt_submit': {
-      const cleared = { ...m, focus: null }
-      // Plan (first prompt included) is left by Claude acting; a new prompt ends an Own check.
-      return m.station === 'plan' ? stay(cleared) : go(cleared, 'brief')
-    }
+    case 'prompt_submit':
+      return go({ ...m, focus: null }, e.move)
+    case 'move':
+      return go(m, e.move)
     case 'turn_complete':
-      // Own stays so its checks can be answered; Plan hands over to Review.
-      return m.station === 'own' ? stay(m) : go(m, 'review')
+      // Your turn to check. Only a pending Own check keeps Own on the rail.
+      return e.ownPending && m.station === 'own' ? stay(m) : go(m, 'review')
     case 'acting':
-      return m.station === 'plan' ? go(m, 'brief') : stay(m)
     case 'plan_approved':
       return m.station === 'plan' ? go(m, 'brief') : stay(m)
+    case 'plan_written':
+      return go(m, 'plan')
     case 'push':
       return m.station === 'own' ? stay(m) : go(m, 'own')
     case 'own_done':
       return m.station === 'own' ? go(m, 'review') : stay(m)
-    case 'flag': {
-      if (isOuter(m.station)) return stay(m)
-      const target = FLAG_TARGET[e.flag]
-      return e.hasEvidence ? go(m, target) : { next: m, suggest: target }
-    }
+    case 'flag':
+      // Haiku never moves the rail: a flag with evidence becomes a suggestion line in the band.
+      return e.hasEvidence && FLAG_TARGET[e.flag] !== m.station
+        ? { next: m, suggest: FLAG_TARGET[e.flag] }
+        : stay(m)
     case 'focus':
       return stay({ ...m, focus: e.station })
     case 'focus_clear':

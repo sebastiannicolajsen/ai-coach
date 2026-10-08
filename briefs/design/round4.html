@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Coach round 4: exchanges</title>
+<style>
+:root{--bg:#FAF9F7;--band:#F0EFEC;--text:#1F1E1D;--muted:#8A8782;--faint:#D6D4D0;
+--plan:#6E5FC4;--planbar:#8B7FD6;--brief:#1F8577;--briefbar:#2A9D8F;--review:#B06A12;--reviewbar:#D08A1E;--own:#B83C6A;--ownbar:#D45A85}
+*{box-sizing:border-box}body{margin:0;background:#E7E5E1;font:16px/1.55 -apple-system,"SF Pro Text","Helvetica Neue",sans-serif;color:var(--text)}
+.wrap{max-width:1500px;margin:0 auto;padding:20px}.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+h1{font-size:19px;margin:6px 0 2px}.lead{color:#5E5B57;font-size:14px;margin:0 0 14px}
+h2{font-size:15px;margin:0 0 2px}.why{font-size:13px;color:#6A6763;margin:0 0 10px;min-height:54px}
+.frame{background:var(--bg);border-radius:12px;padding:18px 20px}
+.bubble{margin-left:auto;width:max-content;max-width:85%;background:var(--band);border-radius:16px;padding:9px 16px}
+.reply{margin:4px 0 4px}.tool{font:13.5px ui-monospace,Menlo,monospace;color:#55534F}
+.meta{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--muted)}.meta.r{justify-content:flex-end;margin:6px 2px 0}
+.g{display:inline-flex;align-items:center}.g i{display:block;height:3px;border-radius:2px;background:var(--faint)}
+.check{display:inline-block;width:11px;height:8px;border-left:1.6px solid #8A8782;border-bottom:1.6px solid #8A8782;transform:rotate(-45deg) translate(1px,-2px)}
+.ex{margin:0 0 22px}
+/* A */
+.head{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:0 0 8px}.head .rule{flex:1;height:1px;background:#E3E1DD}
+/* B */
+.tint{border-radius:14px;padding:10px 12px 12px}
+/* C */
+.card{border:1px solid;border-radius:14px;padding:10px 12px 12px}
+</style></head><body><div class="wrap" id="root"></div>
+<script>
+const C={plan:['--planbar','--plan','Plan'],brief:['--briefbar','--brief','Brief'],review:['--reviewbar','--review','Review'],own:['--ownbar','--own','Own']};
+const K=['plan','brief','review','own'],W=[10,15,15,10],G=[0,4,2,4];
+const g=(st,s=1)=>`<span class="g">${K.map((k,i)=>`<i style="margin-left:${G[i]*s}px;width:${W[i]*s}px;${k===st?`background:var(${C[k][0]})`:''}"></i>`).join('')}</span>`;
+const hex={brief:'42,157,143',review:'208,138,30',own:'212,90,133',plan:'139,127,214'};
+const EX=[
+ {st:'brief',user:'Run the churn analysis on the Q3 export for Thursday.',note:'Goal and deadline are clear',reply:'Done. Churn is 18.4% for Q3, driven mainly by the SMB tier. I excluded 312 trial accounts from the base.',tool:'Write churn.py +142',check:['18.4%','312 trial accounts excluded']},
+ {st:'review',user:'Why did you exclude the trial accounts?',note:'Questioned the result',reply:'Trials never convert to paid contracts in this export, so I left them out. With them, churn is 21.1%.',check:['21.1% with trials']},
+ {st:'own',user:'Push it and draft the email to Mette.',note:'',outer:'push paused',reply:'Pushing churn.py, then I\'ll draft the email to Mette.',tool:'git push origin main paused',check:[]},
+];
+const word=(st,extra)=>`<span style="color:var(${C[st][1]})">${C[st][2]}</span>${extra?`<span style="color:var(--muted)">· ${extra}</span>`:''}`;
+const note=e=>e.note?`<span class="check"></span><span>${e.note}</span>`:'';
+const chk=e=>e.check.length?`<div class="meta" style="margin-top:6px">Check: ${e.check.join(' · ')}</div>`:'';
+
+const A=EX.map(e=>`<div class="ex"><div class="head">${g(e.st,.8)}${word(e.st,e.outer||(e.st==='review'?'checking Claude\'s result':e.st==='brief'?'a new instruction':''))}<span class="rule"></span></div>
+<div class="bubble">${e.user}</div><div class="meta r">${note(e)}</div>
+<p class="reply">${e.reply}</p>${e.tool?`<div class="tool">${e.tool}</div>`:''}${chk(e)}</div>`).join('');
+
+const B=EX.map(e=>`<div class="ex tint" style="background:rgba(${hex[e.st]},.07)">
+<div class="bubble" style="background:rgba(255,255,255,.7)">${e.user}</div><div class="meta r">${g(e.st,.7)}${word(e.st)}${e.outer?`<span>· ${e.outer}</span>`:''}${e.note?`<span class="check" style="margin-left:4px"></span><span>${e.note}</span>`:''}</div>
+<p class="reply">${e.reply}</p>${e.tool?`<div class="tool">${e.tool}</div>`:''}${chk(e)}</div>`).join('');
+
+const Cc=EX.map(e=>`<div class="ex card" style="border-color:rgba(${hex[e.st]},.35)">
+<div class="meta" style="margin-bottom:6px">${g(e.st,.7)}${word(e.st,e.outer||'')}</div>
+<div class="bubble">${e.user}</div><div class="meta r">${note(e)}</div>
+<p class="reply">${e.reply}</p>${e.tool?`<div class="tool">${e.tool}</div>`:''}${chk(e)}</div>`).join('');
+
+document.getElementById('root').innerHTML=`<h1>Round 4: making each exchange belong to a step</h1><p class="lead">Same three exchanges (Brief, Review, Own) drawn three ways. Under every reply: what is worth checking, quoted from the reply.</p>
+<div class="cols">
+<div><h2>A · Chapter line</h2><div class="why">A coloured step line opens each exchange and runs across the chat, like a chapter break. Text and lines only, so it is the safest to build.</div><div class="frame">${A}</div></div>
+<div><h2>B · Tinted exchange</h2><div class="why">Your prompt and Claude's reply sit on one very faint step-coloured field. Strongest grouping; colour is the cue. Depends on the engine accepting a background behind its rows.</div><div class="frame">${B}</div></div>
+<div><h2>C · Outlined exchange</h2><div class="why">A hairline in the step colour around prompt and reply. Clear grouping, but every exchange becomes a card.</div><div class="frame">${Cc}</div></div>
+</div>`;
+</script></body></html>

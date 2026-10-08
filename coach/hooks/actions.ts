@@ -1,12 +1,13 @@
 import type { ModelUsage } from 'claude-code'
-import type { CoachState, CoachBand, CoachPrefs, CoachSettings, CoachStation } from '../types'
+import type { CoachUserNote, CoachState, CoachBand, CoachPrefs, CoachSettings, CoachStation } from '../types'
 import type { Ctx } from './ctx'
 import { EMPTY_CARD } from './card'
-import { COACH_PRICE, DEFAULT_SETTINGS, FOCUS_TEMPLATE, OWN_PASS_TEXT, STATION_NAME } from './config'
+import { COACH_MODELS, DEFAULT_SETTINGS, FOCUS_TEMPLATE, OWN_PASS_TEXT, STATION_NAME } from './config'
 import { addCost } from './cost'
 import { recordDismissal } from './fade'
 import { type Complete, type TurnInput, writeBand } from './haiku'
 import { makeOwnCheck } from './own'
+import { noteKey } from './notes'
 import { type CoachEvent, isOuter, step } from './state'
 import { staticBand } from './validate'
 
@@ -18,7 +19,11 @@ export const PANE_ID = 'coach'
 export const set = <K extends keyof CoachState>($: Dollar, key: K, value: CoachState[K]) =>
   $.patch(key, () => value)
 
-export const complete = ($: Dollar): Complete => req => $.model.complete(req)
+// Every coach call runs on the model chosen in the settings, with that model's time limit.
+export const complete = ($: Dollar): Complete => async req => {
+  const m = COACH_MODELS[(await $.get()).prefs.settings.model] ?? COACH_MODELS.haiku
+  return $.model.complete({ ...req, model: m.id, timeoutMs: m.timeoutMs })
+}
 
 export const heads = (s: string) => s.trim().slice(0, 60)
 
@@ -54,7 +59,24 @@ export const saveSettings = ($: Dollar, patch: Partial<CoachSettings>) =>
   savePrefs($, p => ({ ...p, settings: { ...p.settings, ...patch } }))
 
 export async function recordUsage($: Dollar, usage: ModelUsage | null) {
-  if (usage) await $.patch('cost', c => addCost(c, usage, COACH_PRICE))
+  const m = COACH_MODELS[(await $.get()).prefs.settings.model] ?? COACH_MODELS.haiku
+  if (usage) await $.patch('cost', c => addCost(c, usage, m.price))
+}
+
+// The user row's data: its move, the ✓ note and an outer step, keyed by the prompt's text.
+export async function upsertUserNote($: Dollar, key: string, patch: Partial<CoachUserNote>) {
+  const turn = (await $.get()).turnIndex
+  await $.patch('rowNotes', r => ({
+    ...r,
+    user: { ...r.user, [key]: { move: 'brief' as const, turn, ...r.user[key], ...patch } },
+  }))
+}
+
+const TRACE_MAX = 8
+
+export async function addTrace($: Dollar, call: string, ok: boolean, detail: string) {
+  const turn = (await $.get()).turnIndex
+  await $.patch('trace', t => [...t, { turn, call, ok, detail: detail.slice(0, 160) }].slice(-TRACE_MAX))
 }
 
 export async function dispatch($: Dollar, ev: CoachEvent, reason = '') {
@@ -66,7 +88,7 @@ export async function dispatch($: Dollar, ev: CoachEvent, reason = '') {
   return t
 }
 
-const OUTER_REASON: Record<string, string> = { plan: 'new task', own: 'before it goes out' }
+const OUTER_REASON: Record<string, string> = { plan: 'plan first', own: 'before it goes out' }
 
 async function outerMove($: Dollar, to: CoachStation, reason: string) {
   const why = reason || OUTER_REASON[to] || ''
@@ -75,7 +97,8 @@ async function outerMove($: Dollar, to: CoachStation, reason: string) {
   const turn = (await $.get()).turnIndex
   if ((await $.get()).dividerTurn === turn) return
   await set($, 'dividerTurn', turn)
-  $.ui.log(`${STATION_NAME[to]} · ${why}`)
+  $.ui.log(`${STATION_NAME[to]} · ${why}`, { to: 'debug' })
+  await upsertUserNote($, noteKey((await $.get()).lastPrompt), { outer: `${STATION_NAME[to]} · ${why}` })
   const prompt = (await $.get()).lastPrompt
   const answer = (await $.get()).lastAnswer
   await $.patch('fresh', f => [...f, heads(prompt), heads(answer)].filter(Boolean).slice(-6))
@@ -113,8 +136,15 @@ export async function setBand($: Dollar, band: CoachBand | null) {
   await set($, 'bandRow', band ? rowFor(band) : '')
 }
 
+// The first Coach press ends the first-run line.
+export async function toggleMenu($: Dollar) {
+  await $.patch('menuOpen', o => !o)
+  if ((await $.get()).prefs.hintTaps === 0) await savePrefs($, p => ({ ...p, hintTaps: p.hintTaps + 1 }))
+}
+
 export async function clearBand($: Dollar) {
   await setBand($, null)
+  await set($, 'hiddenBand', null)
   await set($, 'bandLoading', false)
   await set($, 'ownCheck', null)
 }
@@ -129,8 +159,18 @@ export async function dismissBand($: Dollar) {
     await $.patch('sessionDismissals', d => ({ ...d, [band.kind]: (d[band.kind] ?? 0) + 1 }))
     await savePrefs($, p => recordDismissal(p, band.kind))
   }
+  // Kept until the next prompt, so the Coach menu can bring the suggestions back.
+  if (band) await set($, 'hiddenBand', band)
   await setBand($, null)
   await dispatch($, { type: 'focus_clear' })
+}
+
+export async function restoreBand($: Dollar) {
+  const hidden = (await $.get()).hiddenBand
+  if (!hidden) return
+  await set($, 'hiddenBand', null)
+  await set($, 'menuOpen', false)
+  await setBand($, hidden)
 }
 
 export async function turnInput($: Dollar): Promise<TurnInput> {
@@ -175,8 +215,12 @@ export async function focusStation($: Dollar, station: CoachStation) {
     return
   }
   await set($, 'ownCheck', null)
+  // The template shows dim in the empty prompt box (Tab takes it) and never overwrites typed text.
   const template = FOCUS_TEMPLATE[station]
-  if (template) await fillFromCoach($, template, true)
+  if (template) {
+    const r = await $.prompt.suggest({ text: template }).catch(() => undefined)
+    await addTrace($, 'suggest', r !== undefined, `focus ${station}: ${template.slice(0, 60)}`)
+  }
   await setBand($, staticBand(station))
   const input = await turnInput($)
   if (input.user === '' && input.answer === '') return

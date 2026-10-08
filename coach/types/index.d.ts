@@ -27,7 +27,11 @@ export type CoachBand = {
 export type CoachCadence = 'every' | 'third' | 'focus'
 export type CoachPausePushes = 'unset' | 'on' | 'off'
 
+// Which model writes the coach's feedback.
+export type CoachModel = 'haiku' | 'sonnet' | 'opus'
+
 export type CoachSettings = {
+  model: CoachModel
   cadence: CoachCadence
   pausePushes: CoachPausePushes
   labels: boolean
@@ -56,6 +60,21 @@ export type CoachOwnCheck = {
 }
 export type CoachSuggestion = { template: string; kind: string }
 export type CoachMetaMessage = { role: 'user' | 'coach'; text: string }
+export type CoachUserNote = {
+  move: CoachStation
+  note?: string
+  outer?: string
+  // The step the person was in when they sent this, set when they left Review for something else.
+  from?: CoachStation
+  // A caption that says more than the move's default, such as "starting new work".
+  caption?: string
+  // What the prompt could still say, from the slots of the suggested template: "question, audience".
+  gap?: string
+  turn: number
+}
+export type CoachReplyNote = { turn: number; check: string[] }
+export type CoachRowNotes = { user: Record<string, CoachUserNote>; reply: CoachReplyNote | null }
+export type CoachTrace = { turn: number; call: string; ok: boolean; detail: string }
 export type CoachUsage = { convUsd: number | null; isApprox: boolean }
 export type CoachRows = { user: string; reply: string; userTurn: number; replyTurn: number }
 export type CoachCost = { tokens: number; usd: number }
@@ -69,8 +88,12 @@ export type CoachState = {
   pulse: boolean
   card: CoachCard
   band: CoachBand | null
+  // The last suggestions the person dismissed, so Coach can show them again until the next prompt.
+  hiddenBand: CoachBand | null
   bandLoading: boolean
-  notes: Record<string, string>
+  rowNotes: CoachRowNotes
+  moveNote: string
+  trace: CoachTrace[]
   pendingSuggest: CoachSuggestion | null
   shownSuggest: CoachSuggestion | null
   ownCheck: CoachOwnCheck | null
@@ -98,7 +121,6 @@ export type CoachState = {
   usage: CoachUsage
   rows: CoachRows
   bandRow: string
-  latestNote: { turn: number; text: string } | null
 }
 
 declare module 'claude-code' {

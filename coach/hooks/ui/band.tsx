@@ -1,8 +1,8 @@
 import type { CoachBand, CoachOwnCheck, CoachState } from '../../types'
-import { type Dollar, dismissBand, fillFromCoach, finishOwn, focusStation, setEnabled, tickOwn } from '../actions'
+import { type Dollar, dismissBand, fillFromCoach, finishOwn, focusStation, setEnabled, tickOwn, toggleMenu, restoreBand } from '../actions'
 import { OWN_CONTINUE, STATIONS, STATION_NAME } from '../config'
 import { menuCost } from '../cost'
-import { type Ui, glyph, hairline, withSurface } from './glyph'
+import { type Ui, checkMark, glyph, withSurface } from './glyph'
 import { focusTarget, hasQuote, targetOf } from '../target'
 import { rail } from './rail'
 
@@ -39,34 +39,18 @@ function sourceRow(ui: Ui, quotes: string[], target: string) {
   )
 }
 
+// Only suggestions: one row of buttons that fill the prompt box, and a dismiss at the end. What the coach
+// noticed about the person's own message is said under that message, not here.
 function bandView(ui: Ui, $: Dollar, band: CoachBand) {
-  const { Box, Text, Button } = ui
+  const { Box, Button } = ui
   return (
-    <Box flexDirection="column">
-      {band.title && titleRow(ui, $, band.title)}
-      {hasQuote(band) ? sourceRow(ui, band.evidence, targetOf(band.station)) : <Text dimColor>{focusTarget(band.station)}</Text>}
-      <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
+    <Box flexDirection="row" justifyContent="space-between" gap={1}>
+      <Box flexDirection="row" flexWrap="wrap" gap={1} flexShrink={1}>
         {band.chips.map((chip, i) => (
-          <Button
-            key={`chip-${i}`}
-            label={chip.label}
-            onPress={() => void fillFromCoach($, chip.fill)}
-          />
+          <Button key={`chip-${i}`} label={chip.label} onPress={() => void fillFromCoach($, chip.fill)} />
         ))}
       </Box>
-      {band.suggestion && (
-        <Box flexDirection="row" gap={1}>
-          <Text dimColor>
-            Step out to {STATION_NAME[band.suggestion.station]}? {band.suggestion.reason}
-          </Text>
-          <Button
-            key="suggest"
-            label={`Go to ${STATION_NAME[band.suggestion.station]}`}
-            plain
-            onPress={() => void focusStation($, band.suggestion!.station)}
-          />
-        </Box>
-      )}
+      {dismissButton(ui, $)}
     </Box>
   )
 }
@@ -78,13 +62,17 @@ function ownView(ui: Ui, $: Dollar, check: CoachOwnCheck) {
       {titleRow(ui, $, check.title)}
       {sourceRow(ui, check.source, '')}
       <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
-        {check.checks.map((text, i) => (
-          <Button
-            key={`own-${i}`}
-            label={`${check.ticked.includes(i) ? '☑' : '☐'} ${text}`}
-            onPress={() => void tickOwn($, i)}
-          />
-        ))}
+        {check.checks.map((text, i) =>
+          // Open checks are plain buttons; a ticked one turns into a drawn tick and dim text, still pressable.
+          check.ticked.includes(i) ? (
+            <Box key={`own-done-${i}`} flexDirection="row" gap={1} alignItems="center">
+              {checkMark(ui)}
+              <Button key={`own-${i}`} plain dimColor label={text} onPress={() => void tickOwn($, i)} />
+            </Box>
+          ) : (
+            <Button key={`own-${i}`} label={text} onPress={() => void tickOwn($, i)} />
+          ),
+        )}
         <Button key="own-continue" plain dimColor label={OWN_CONTINUE} onPress={() => void finishOwn($)} />
       </Box>
     </Box>
@@ -108,7 +96,8 @@ function fold(ui: Ui, $: Dollar, st: CoachState) {
         ))}
       </Box>
       <Box flexDirection="row" gap={1} flexShrink={0}>
-        <Text dimColor>{menuCost(st.cost.usd, st.usage.isApprox)}</Text>
+        {st.hiddenBand && !st.band && <Button key="menu-restore" label="Show suggestions" onPress={() => void restoreBand($)} />}
+        <Text dimColor>{menuCost(st.cost.usd, st.usage.convUsd)}</Text>
         <Button key="menu-off" label="Turn off" onPress={() => void setEnabled($, false)} />
       </Box>
     </Box>
@@ -122,7 +111,7 @@ export async function renderAbovePrompt(
 ) {
   if (e.props.hasSurvey) return next(e as never)
   const ui = withSurface($.ui.resolve(e), (e as { surface: string }).surface)
-  const { Box, Button } = ui
+  const { Box, Button, Text } = ui
   const st = await $.get()
 
   if (!st.prefs.enabled) {
@@ -143,16 +132,17 @@ export async function renderAbovePrompt(
         : st.band
           ? bandView(ui, $, st.band)
           : null
-  const hasRule = content !== null || st.menuOpen
-
+  // Suggestions on top, a rule, then the status group: the Focus row sits right above the rail it changes.
   return (
     <Box flexDirection="column">
       {content}
       {st.menuOpen && fold(ui, $, st)}
-      {hasRule && hairline(ui, e.props.bodyColumns)}
+      {content === null && !st.menuOpen && st.prefs.hintTaps === 0 && st.prefs.sessions <= 3 && (
+        <Text dimColor>The coach follows your loop with Claude. Press Coach to focus on a step.</Text>
+      )}
       <Box flexDirection="row" gap={1}>
-        {rail(ui, { station: st.station, focus: st.focus, reason: st.stationReason, pulse: st.pulse })}
-        <Button key="menu" plain label="Coach" onPress={() => void $.patch('menuOpen', o => !o)} />
+        {rail(ui, { station: st.station, focus: st.focus, reason: st.stationReason, moveNote: st.moveNote, pulse: st.pulse })}
+        <Button key="menu" plain label="Coach" onPress={() => void toggleMenu($)} />
       </Box>
     </Box>
   )

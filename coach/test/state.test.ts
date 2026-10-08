@@ -5,7 +5,7 @@ import { type CoachEvent, START, isOuter, step } from '../hooks/state'
 const at = (station: CoachStation, focus: CoachStation | null = null): CoachMachine => ({ station, focus })
 const to = (m: CoachMachine, e: CoachEvent) => step(m, e).next.station
 
-describe('station machine, brief section 5.1', () => {
+describe('station machine: the rail says what to do now, the person move decides it', () => {
   test('session start goes to Plan from any station', () => {
     for (const s of ['plan', 'brief', 'review', 'own'] as const) {
       expect(to(at(s), { type: 'session_start' })).toBe('plan')
@@ -13,54 +13,41 @@ describe('station machine, brief section 5.1', () => {
     expect(START.station).toBe('plan')
   })
 
-  test('the first prompt stays in Plan until Claude acts', () => {
-    expect(to(at('plan'), { type: 'prompt_submit' })).toBe('plan')
-  })
-
-  test('prompt.submit moves any inner station to Brief', () => {
-    expect(to(at('brief'), { type: 'prompt_submit' })).toBe('brief')
-    expect(to(at('review'), { type: 'prompt_submit' })).toBe('brief')
-  })
-
-  test('turn.complete moves any inner station to Review', () => {
-    expect(to(at('brief'), { type: 'turn_complete' })).toBe('review')
-    expect(to(at('review'), { type: 'turn_complete' })).toBe('review')
-  })
-
-  test('turn.complete hands Plan over to Review and leaves Own open for its checks', () => {
-    expect(to(at('plan'), { type: 'turn_complete' })).toBe('review')
-    expect(to(at('own'), { type: 'turn_complete' })).toBe('own')
-  })
-
-  test('new_task and scope_change with evidence move an inner station to Plan', () => {
-    for (const flag of ['new_task', 'scope_change'] as const) {
-      expect(to(at('review'), { type: 'flag', flag, hasEvidence: true })).toBe('plan')
-      expect(to(at('brief'), { type: 'flag', flag, hasEvidence: true })).toBe('plan')
+  test('prompt.submit takes the station of the person move, from any station', () => {
+    for (const from of ['plan', 'brief', 'review', 'own'] as const) {
+      for (const move of ['plan', 'brief', 'review', 'own'] as const) {
+        expect(to(at(from), { type: 'prompt_submit', move })).toBe(move)
+      }
     }
   })
 
-  test('share_intent with evidence moves an inner station to Own', () => {
-    expect(to(at('review'), { type: 'flag', flag: 'share_intent', hasEvidence: true })).toBe('own')
+  test('Haiku can correct the move while the turn runs', () => {
+    expect(to(at('brief'), { type: 'move', move: 'review' })).toBe('review')
   })
 
-  test('hysteresis: a flag without evidence never moves, it suggests', () => {
-    const t = step(at('review'), { type: 'flag', flag: 'new_task', hasEvidence: false })
+  test('turn.complete is always Review, except while an Own check is pending', () => {
+    for (const s of ['plan', 'brief', 'review', 'own'] as const) {
+      expect(to(at(s), { type: 'turn_complete' })).toBe('review')
+    }
+    expect(to(at('own'), { type: 'turn_complete', ownPending: true })).toBe('own')
+    expect(to(at('brief'), { type: 'turn_complete', ownPending: true })).toBe('review')
+  })
+
+  test('Haiku flags never move the rail; with evidence they only suggest', () => {
+    const t = step(at('review'), { type: 'flag', flag: 'new_task', hasEvidence: true })
     expect(t.next.station).toBe('review')
     expect(t.suggest).toBe('plan')
-    const s = step(at('brief'), { type: 'flag', flag: 'share_intent', hasEvidence: false })
-    expect(s.next.station).toBe('brief')
-    expect(s.suggest).toBe('own')
+    expect(step(at('brief'), { type: 'flag', flag: 'scope_change', hasEvidence: true }).next.station).toBe('brief')
+    expect(step(at('brief'), { type: 'flag', flag: 'share_intent', hasEvidence: true }).suggest).toBe('own')
   })
 
-  test('flags do nothing while already in an outer station', () => {
-    expect(step(at('own'), { type: 'flag', flag: 'new_task', hasEvidence: true })).toEqual({
-      next: at('own'),
-      suggest: null,
-    })
-    expect(to(at('plan'), { type: 'flag', flag: 'share_intent', hasEvidence: true })).toBe('plan')
+  test('a flag without evidence, or for the station already shown, suggests nothing', () => {
+    expect(step(at('review'), { type: 'flag', flag: 'new_task', hasEvidence: false })).toEqual({ next: at('review'), suggest: null })
+    expect(step(at('own'), { type: 'flag', flag: 'share_intent', hasEvidence: true }).suggest).toBeNull()
   })
 
-  test('Plan is left when Claude starts acting or the plan is approved', () => {
+  test('Plan is entered by a plan file and left when Claude acts or the plan is approved', () => {
+    expect(to(at('review'), { type: 'plan_written' })).toBe('plan')
     expect(to(at('plan'), { type: 'acting' })).toBe('brief')
     expect(to(at('plan'), { type: 'plan_approved' })).toBe('brief')
     expect(to(at('review'), { type: 'acting' })).toBe('review')
@@ -73,9 +60,8 @@ describe('station machine, brief section 5.1', () => {
     expect(to(at('own'), { type: 'push' })).toBe('own')
   })
 
-  test('Own returns to the inner loop when the checks end or the next prompt arrives', () => {
+  test('Own returns to Review when the checks end', () => {
     expect(to(at('own'), { type: 'own_done' })).toBe('review')
-    expect(to(at('own'), { type: 'prompt_submit' })).toBe('brief')
     expect(to(at('review'), { type: 'own_done' })).toBe('review')
   })
 
@@ -92,8 +78,8 @@ describe('focus', () => {
   })
 
   test('the next prompt clears the focus', () => {
-    expect(step(at('review', 'plan'), { type: 'prompt_submit' }).next.focus).toBeNull()
-    expect(step(at('plan', 'own'), { type: 'prompt_submit' }).next.focus).toBeNull()
+    expect(step(at('review', 'plan'), { type: 'prompt_submit', move: 'brief' }).next.focus).toBeNull()
+    expect(step(at('plan', 'own'), { type: 'prompt_submit', move: 'review' }).next.focus).toBeNull()
   })
 
   test('focus_clear drops it without moving', () => {

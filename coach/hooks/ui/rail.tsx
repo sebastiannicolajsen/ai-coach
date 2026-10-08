@@ -6,6 +6,7 @@ export type RailProps = {
   station: CoachStation
   focus: CoachStation | null
   reason: string
+  moveNote?: string
   pulse: boolean
 }
 
@@ -24,7 +25,7 @@ export function rail(ui: Ui, p: RailProps) {
       </Text>
       <Box flexShrink={1} marginLeft={1}>
         <Text dimColor wrap="truncate">
-          {p.reason || STATION_CAPTION[shown]}
+          {p.reason || (p.focus ? '' : (p.moveNote ?? '')) || STATION_CAPTION[shown]}
         </Text>
       </Box>
     </Box>

@@ -1,61 +1,126 @@
 # Coach
 
-A quiet thinking partner for working with Claude Code. It shows where you are in the working loop and helps with the next step, without explaining a framework.
+<a href="../dist/coach-0.2.0.zip"><img src="https://img.shields.io/badge/Download-Coach%200.2.0-2A9D8F?style=for-the-badge" alt="Download Coach 0.2.0"></a>
 
-The loop has four stations. Plan (decide what Claude should do), Brief (your next prompt), Review (check what Claude gave you) and Own (stand behind what you ship). Brief and Review are the inner loop; Plan and Own are the steps outside it.
+A quiet thinking partner for working with Claude Code. It shows which step of the working loop you are in and helps you take the next one well, without explaining a framework.
+
+## Install
+
+**From the zip** ([`dist/coach-0.2.0.zip`](../dist/coach-0.2.0.zip)): unzip it into a folder, then start Claude Code with that folder as a plugin:
+
+```bash
+claude --plugin-dir /path/to/unzipped/coach
+```
+
+**From this repository** (recommended inside Implement): add the repository as a local marketplace once, then install.
+
+```bash
+claude plugin marketplace add /path/to/ai-coach
+```
+
+```bash
+claude plugin install coach@implement-ai-coach
+```
+
+Start a new chat afterwards and run `/coach help` to see every command.
+
+## The loop
+
+Four steps. **Plan**: decide what Claude should do. **Brief**: your next prompt. **Review**: check what Claude gave you. **Own**: stand behind what you ship. Brief and Review are the everyday loop; Plan and Own are the steps outside it.
+
+The coach decides the step from what your message does:
+
+| Your message | Step |
+|---|---|
+| "Help me with a new pitch", "I need help with…", "Jeg har brug for hjælp til…" | Plan · starting new work |
+| "Make a plan…", "How would you approach…", "Should we…" | Plan · asked for a plan |
+| A new or next instruction | Brief · a new instruction |
+| "Why did you…", "Are you sure…", "That's wrong", "…instead" | Review · checking Claude's result |
+| "Looks good", "Perfect", "Final version", "Ready to send", "Det ser godt ud" | Own · taking it as final |
+| Push, publish, deploy, "send it to…" | Own · about to ship |
+
+After every reply from Claude the step line says Review: it is your turn to check.
 
 ## What you see
 
-- **Rail** above the prompt, one row: four bars (a small drawing on desktop, line characters in the terminal), the station word in its colour, a dim caption, and `Coach` at the right. `Coach` opens one row: `Focus on` with four step buttons on the left (picking one shows a band at once, focuses the coach until your next prompt and pre-fills a template when the box is empty), and the cost with `Turn off` on the right.
-- **Start quietly**: on by default; off is preview mode.
-- **Labels in the chat**: the glyph (active bar coloured) and station name on your prompts (Brief, with a `✓` note when there is one) and on Claude's replies (Review, or Own during a check). From the fourth session only the latest exchange shows them; older ones appear on hover.
-- **Dividers**: one short dim line such as `Own · push paused` when you step out to Plan or Own, at most one per turn.
-- **Band** above the rail, only after Claude has finished and only when something is worth saying or you chose a focus. A finding band is a title with `×`, the quoted source in dim italic, and two or three buttons that fill the prompt box. A focus band adds a header row. A thin rule separates the band from the rail; there is no rule at rest.
-- **Own checks** on `git commit`, `git push` and deploy commands: a title, the source, three check buttons (the third can come from what Claude assumed) and `Continue anyway`. With Pause pushes on, the push is denied once with a note to wait; finishing the checks lets the next push through once and sends `Checks done. Go ahead with the push.` as a prompt.
-- **Pane** (`/coach`): the four steps with short meanings, what the conversation is about, a Socratic `Stuck?` chat, settings as selects, the cost and the attribution.
-
-The first session is silent apart from the rail, labels and one toast. Sessions two and three allow at most one band per five turns. From session four, behaviours you already show without prompting stop being coached, and a finding you dismiss twice (or five times in total) stops being raised.
+- **Chapter line** above each of your messages: the step in its colour, a short caption and a thin line. When you leave Review for a new instruction it says `moved on from Review`.
+- **Feedback** under your message: `✓` for a move worth repeating (for example `Audience is named`, `Questioned the result`), `◐ Could add: question, audience` when a short request leaves out the basics.
+- **Template** in the empty prompt box after the reply, with named slots such as `[audience]` and `[deadline]`. Tab takes it.
+- **Suggestions** above the prompt: one row of buttons that put a question or prompt into the box, and `✕`. A dismissed set comes back from **Coach → Show suggestions** until your next prompt.
+- **Own checks** when you take a result as final or push: `Tested myself`, `No client data` and a third drawn from the conversation, plus `Continue anyway`. With *Pause pushes* on, a push waits until the checks are done.
+- **Step line** under the suggestions: the four bars, the current step and its meaning, and `Coach`. `Coach` opens one row: `Focus on` Plan, Brief, Review or Own, the coach's cost, and `Turn off`.
+- **Pane** (`/coach`): the four steps, what the conversation is about, a `Stuck?` chat, settings and attribution.
 
 ## Commands
 
 | Command | Does |
 |---|---|
-| `/coach` | Open the pane (steps, Stuck? chat, settings) |
-| `/coach on`, `/coach off` | Set it explicitly |
-| `/coach pane` | Open the Coach pane |
-| `/coach ask` | Open the pane at the `Stuck?` chat |
-| `/coach settings` | Open the pane with settings |
-| `/coach preview` | Toggle preview: skips the silent first session, fade, dismissal silencing and the one-band-per-5-turns limit (the check cadence still applies) |
-| `/coach about` | What the coach reads and stores, in four lines |
+| `/coach help` | List every command |
+| `/coach` | Open the pane |
+| `/coach on` · `/coach off` | Turn the coach on or off, for every chat |
+| `/coach preview on` · `off` | Show every finding from the first session (for testing and demos); plain `/coach preview` toggles |
+| `/coach model haiku` · `sonnet` · `opus` | Pick the model that writes the feedback |
+| `/coach model` | Show which model runs now |
+| `/coach why` | The last analysis: which calls ran, what came back and why anything was dropped |
+| `/coach settings` | Open the pane at the settings |
+| `/coach ask` | Open the `Stuck?` chat |
+| `/coach about` | What the coach reads and stores |
+| `/coach gallery` | A drawing test for the surface you are on |
+
+## Feedback model and cost
+
+The feedback runs on **Haiku 4.5** by default. Switch with `/coach model sonnet` or `/coach model opus`, or in the pane under *Feedback model*. Larger models are slower and cost more:
+
+| Model | Input | Output | Cache write | Cache read |
+|---|---|---|---|---|
+| Haiku 4.5 | $1 | $5 | $1.25 | $0.10 |
+| Sonnet 5.5 | $2 | $10 | $2.50 | $0.10 |
+| Opus 5.5 | $4 | $20 | $5 | $0.20 |
+
+Prices per million tokens, from the [Anthropic pricing page](https://platform.claude.com/docs/en/about-claude/pricing) on 2026-10-08; they live in `hooks/config.ts`.
+
+The Coach menu shows the coach's own cost as its share of the session, for example `Coach 2% of this session`; the pane adds the model, `Coach 2% of this session · Haiku 4.5`.
 
 ## Settings
 
-In the pane (`/coach`).
+In the pane (`/coach`):
 
-- **Coach checks**: every turn (default), every 3rd turn, or on focus only. This covers the turn analysis, the band and the prompt notes.
+- **Feedback model**: Haiku 4.5 (default), Sonnet 5.5 or Opus 5.5.
+- **Coach checks**: every turn (default), every 3rd turn, or on focus only.
 - **Pause pushes for a check**: off by default; asked once on the first push.
-- **Start quietly**: on by default; off is preview mode.
+- **Start quietly**: on by default. The first session then shows only the chapter lines and the step line; sessions two and three allow one set of suggestions per five turns; from session four, behaviours you already show stop being coached. Off is the same as `/coach preview on`.
 - **Labels in the chat**: on or off.
-- **Raise silenced findings again**: clears dismissals.
+
+Settings are shared by every chat and read again with each message.
 
 ## Privacy
 
-- Reads: your prompts, Claude's answers and tool names in this session, only to follow the loop.
-- Sends: short excerpts to Haiku through this session's own connection, and nothing to any other service.
-- Keeps in memory: a small context card for this session only, cleared when it ends.
-- Stores on disk: counters and settings only (on or off, sessions, dismissals), never message text.
+- **Reads** your prompts, Claude's answers and tool names in the session, only to follow the loop.
+- **Sends** short excerpts to the chosen feedback model through the session's own Claude connection, and to nothing else.
+- **Keeps in memory** a small context card for the session only.
+- **Stores on disk** counters and settings only, never message text.
 
-Mods are not sandboxed and see every prompt. Distribute through Implement's managed plugin marketplace after IT security review; public-sector and client work needs the DPO's sign-off beyond internal use.
+Mods are not sandboxed and see every prompt. Distribute through Implement's managed plugin marketplace after IT security review; client and public-sector work needs the DPO's sign-off.
 
-## Cost
+## For developers
 
-The Coach menu shows what the coach's own Haiku calls cost against the conversation's cost, for example `Coach $0.03, 2% of $1.48 this session`. Subscription users see `≈` before the amount. Prices are in `hooks/config.ts` (source and date in the comment).
+`hooks/register.tsx` wires every hook. Decisions are pure and unit-tested: `moves.ts` (which step a message is), `gaps.ts` (what a short request leaves out), `state.ts`, `card.ts`, `validate.ts`, `fade.ts`, `cost.ts`. `haiku.ts` makes the model calls and never throws. UI lives in `hooks/ui/`.
 
-## Layout
+```bash
+claude plugin validate .
+```
 
-`hooks/register.tsx` wires every hook and is the only file that touches the engine's `$`; everything else gets a narrow `Ctx` from it. Decisions are pure and unit-tested: `state.ts` (station machine), `card.ts`, `validate.ts`, `fade.ts`, `cost.ts`. `haiku.ts` makes the three model calls and never throws. UI lives in `hooks/ui/`. State is one `coach.state` value; the contract is in `types/index.d.ts`.
+```bash
+claude plugin test .
+```
 
-Run `claude plugin validate .` and `claude plugin test .` in this folder, and `npx -p typescript tsc -p .` once Claude Code has laid `.claude-plugin/types`.
+After a change, raise the version in `.claude-plugin/plugin.json`, run `claude plugin update coach@implement-ai-coach`, and rebuild the zip from the `coach/` folder:
+
+```bash
+git ls-files -co --exclude-standard | zip -q ../dist/coach-<version>.zip -@
+```
+
+What the desktop app draws and refuses is in [SPIKES.md](SPIKES.md): a thin or very wide image does not draw, a long text line wraps to two lines, a truncated one ends in `…`, so rules are built from short dash pieces.
 
 ## Attribution
 

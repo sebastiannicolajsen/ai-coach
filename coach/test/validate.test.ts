@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'claude-code/testing'
+import { extractJson } from '../hooks/haiku'
 import {
+  auditChips,
+  whyNotFinding,
+  GOOD_MOVES,
   isBlocked,
   isVerbatim,
   validateBand,
@@ -18,7 +22,12 @@ describe('evidence', () => {
   test('is a verbatim substring, whitespace-insensitive', () => {
     expect(isVerbatim(HAY, 'churn numbers to Mette')).toBe(true)
     expect(isVerbatim(HAY, 'churn   numbers\nto Mette')).toBe(true)
-    expect(isVerbatim(HAY, 'Churn numbers to Mette')).toBe(false)
+    expect(isVerbatim(HAY, 'Churn numbers to Mette')).toBe(true)
+    expect(isVerbatim(HAY, 'churn numbers to Mette.')).toBe(true)
+    expect(isVerbatim(HAY, '\u201cchurn numbers to Mette\u201d')).toBe(true)
+    expect(isVerbatim(HAY, 'Send churn numbers to Mette by Thursday')).toBe(true)
+    expect(isVerbatim(HAY, 'Send the churn figures to Mette by Friday soon')).toBe(false)
+    expect(isVerbatim(HAY, 'unrelated words entirely')).toBe(false)
     expect(isVerbatim(HAY, 'ab')).toBe(false)
     expect(isVerbatim(HAY, 42)).toBe(false)
   })
@@ -43,8 +52,9 @@ describe('chips', () => {
   })
 
   test('appends a blank to Brief chips that lack one', () => {
-    expect(withBlanks('brief', 'The deadline is')).toBe('The deadline is: ___')
+    expect(withBlanks('brief', 'The deadline is')).toBe('The deadline is: [detail]')
     expect(withBlanks('brief', 'Churn means ___')).toBe('Churn means ___')
+    expect(withBlanks('brief', 'This is for [audience]')).toBe('This is for [audience]')
     expect(withBlanks('review', 'Where does 18.4% come from?')).toBe('Where does 18.4% come from?')
   })
 
@@ -118,35 +128,95 @@ describe('finding and flags', () => {
   })
 })
 
+describe('preview', () => {
+  const f = { station: 'review', kind: 'unchecked_claim', evidence: ['18.4%'], confidence: 'low' }
+  test('a low-confidence finding is kept only in preview, and marked', () => {
+    expect(validateFinding(f, HAY)).toBeNull()
+    expect(validateFinding(f, HAY, true)).toEqual({ station: 'review', kind: 'unchecked_claim', evidence: ['18.4%'], isLow: true })
+  })
+
+  test('one grounded chip plus a static one is enough in preview only', () => {
+    const raw = { title: 'The 18.4% has no source yet', chips: [{ label: 'Source for 18.4%', fill: 'Where from?', evidence: '18.4%' }] }
+    expect(validateBand(raw, HAY, 'review', null)).toBeNull()
+    const band = validateBand(raw, HAY, 'review', null, 'finding', true)
+    expect(band?.chips).toHaveLength(2)
+    expect(band?.chips[1]?.evidence).toBe('')
+  })
+
+  test('audits say why chips were dropped', () => {
+    const { kept, dropped } = auditChips(
+      [
+        { label: 'Source for 18.4%', fill: 'a', evidence: '18.4%' },
+        { label: 'Be more specific', fill: 'b', evidence: '18.4%' },
+        { label: 'Other thing', fill: 'c', evidence: 'nothing like it at all' },
+        { label: 3 },
+      ],
+      HAY,
+      'review',
+    )
+    expect(kept).toHaveLength(1)
+    expect(dropped).toEqual(['generic', 'no evidence', 'malformed'])
+  })
+
+  test('why a raw finding was dropped', () => {
+    expect(whyNotFinding(null, HAY, false)).toBe('none returned')
+    expect(whyNotFinding(f, HAY, false)).toBe('confidence low')
+    expect(whyNotFinding({ ...f, confidence: 'high', evidence: ['invented words nobody wrote'] }, HAY, false)).toBe('no evidence found in the turn')
+    expect(whyNotFinding({ ...f, confidence: 'high' }, HAY, false)).toBe('kept')
+  })
+})
+
 describe('prompt note', () => {
   test('keeps only grounded items', () => {
     const hay = 'Make a summary for Mette by Thursday. A customer has churned when the contract ends.'
     const ok = validateNote(
       {
-        good: { text: 'Audience and deadline are clear', evidence: 'for Mette by Thursday', kind: null },
-        suggestion: { template: 'A customer has churned when ___', evidence: 'A customer has churned', kind: 'missing_done' },
+        good: { move: 'audience_named', evidence: 'for Mette by Thursday' },
+        suggestion: { template: 'A customer has churned when [event]', evidence: 'A customer has churned', kind: 'missing_done' },
       },
       hay,
     )
-    expect(ok.good?.text).toBe('Audience and deadline are clear')
-    expect(ok.suggestion?.template).toContain('___')
+    expect(ok.good).toEqual({ text: 'Audience is named', kind: 'missing_audience' })
+    expect(ok.suggestion?.template).toContain('[event]')
     const bad = validateNote(
-      { good: { text: 'Nice', evidence: 'not there' }, suggestion: { template: 'no blank', evidence: 'A customer has churned' } },
+      { good: { move: 'goal_stated', evidence: 'not there' }, suggestion: { template: 'no slot at all', evidence: 'A customer has churned' } },
       hay,
     )
-    expect(bad).toEqual({ good: null, suggestion: null })
+    expect(bad).toEqual({ good: null, suggestion: null, move: null })
   })
 
-  test('truncates the note to 50 characters and rejects long templates', () => {
+  test('free-text notes are rejected; a fixed move maps to our own words', () => {
     const hay = 'some prompt text here'
-    const r = validateNote(
-      {
-        good: { text: 'x'.repeat(80), evidence: 'prompt text' },
-        suggestion: { template: `${'y'.repeat(90)} ___`, evidence: 'prompt text' },
-      },
-      hay,
-    )
-    expect(r.good?.text).toHaveLength(50)
-    expect(r.suggestion).toBeNull()
+    expect(validateNote({ good: { text: 'Great prompt, very clear', evidence: 'prompt text' } }, hay).good).toBeNull()
+    expect(validateNote({ good: { move: 'made_up_move', evidence: 'prompt text' } }, hay).good).toBeNull()
+    for (const [move, { text }] of Object.entries(GOOD_MOVES)) {
+      expect(validateNote({ good: { move, evidence: 'prompt text', text: 'ignored free text' } }, hay).good?.text).toBe(text)
+    }
+    expect(GOOD_MOVES.audience_named?.text).toBe('Audience is named')
+  })
+
+  test('templates need a [slot] (or legacy ___) and fit 120 characters', () => {
+    const hay = 'some prompt text here'
+    const note = (template: string) => validateNote({ suggestion: { template, evidence: 'prompt text' } }, hay).suggestion
+    expect(note('This is for [audience]')?.template).toBe('This is for [audience]')
+    expect(note('Churn means ___')?.template).toBe('Churn means ___')
+    expect(note('No slot in this one')).toBeNull()
+    expect(note(`${'y'.repeat(130)} [audience]`)).toBeNull()
+  })
+})
+
+describe('hardening from live traces', () => {
+  test('a cut-off JSON reply is repaired', () => {
+    const r = extractJson('Here you go: {"station":"review","title":"Check the 312","chips":[{"label":"Show both","fill":"Show with and without tr') as { title?: string; chips?: unknown[] }
+    expect(r?.title).toBe('Check the 312')
+    expect(Array.isArray(r?.chips)).toBe(true)
+  })
+
+  test('a gap is never a check note', () => {
+    const hay = 'Hi there i want help to do some analysis'
+    const gap = validateNote({ good: { text: 'Broad request without goal', evidence: 'want help to do some analysis' } }, hay)
+    expect(gap.good).toBeNull()
+    const ok = validateNote({ good: { move: 'questioned_result', evidence: 'want help' } }, hay)
+    expect(ok.good?.text).toBe('Questioned the result')
   })
 })

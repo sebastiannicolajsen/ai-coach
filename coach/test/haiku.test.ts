@@ -42,7 +42,7 @@ describe('haiku calls', () => {
     expect(r.flags[0]?.hasEvidence).toBe(true)
     expect(r.finding?.kind).toBe('unchecked_claim')
     expect(r.usage).toEqual(usage)
-    expect(seen[0]).toMatchObject({ model: 'haiku', maxTokens: 500, effort: 'low', timeoutMs: 8000 })
+    expect(seen[0]).toMatchObject({ model: 'haiku', maxTokens: 1200, effort: 'low', timeoutMs: 8000 })
   })
 
   test('failure, rejection or junk never throws and renders nothing', async () => {
@@ -83,13 +83,13 @@ describe('haiku calls', () => {
     const r = await notePrompt(
       async () =>
         answered({
-          good: { text: 'Audience and deadline are clear', evidence: 'to Mette by Thursday', kind: null },
-          suggestion: { template: 'Churn means ___', evidence: 'churn analysis', kind: 'missing_done' },
+          good: { move: 'audience_named', evidence: 'to Mette by Thursday' },
+          suggestion: { template: 'Churn means [definition]', evidence: 'churn analysis', kind: 'missing_done' },
         }),
       input.user,
       input.card,
     )
-    expect(r.good?.text).toBe('Audience and deadline are clear')
+    expect(r.good?.text).toBe('Audience is named')
     expect(r.suggestion?.kind).toBe('missing_done')
   })
 })

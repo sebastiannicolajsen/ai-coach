@@ -4,7 +4,7 @@ import { dismissBand, fillFromCoach, finishOwn, focusStation, tickOwn } from '..
 import { OWN_CHECKS, OWN_DENY_TEXT, OWN_PASS_TEXT } from '../hooks/config'
 import { INITIAL } from '../hooks/initial'
 import { makeOwnCheck, ownChecks } from '../hooks/own'
-import { noteKey, ruleNote } from '../hooks/notes'
+import { noteKey } from '../hooks/notes'
 import { blockedBecause } from '../hooks/fade'
 import { answered, makeFake } from './fake'
 
@@ -24,6 +24,9 @@ const BAND_B = {
 }
 const ANSWER = 'Churn is 18.4% and SMB is the driver.'
 
+const outers = (f: { state: { rowNotes: { user: Record<string, { outer?: string }> } } }) =>
+  Object.values(f.state.rowNotes.user).flatMap(n => (n.outer ? [n.outer] : []))
+
 describe('commands', () => {
   test('git commit, push and deploy are recognised', () => {
     expect(classifyCommand('git commit -m "x"')).toBe('commit')
@@ -37,10 +40,11 @@ describe('commands', () => {
 })
 
 describe('prompt.submit side', () => {
-  test('moves to Brief, clears focus and band, counts the turn', async () => {
+  test('takes the station of the person move, clears focus and band, counts the turn', async () => {
     const f = makeFake({ station: 'review', focus: 'plan', turnIndex: 2, prefs: prefsFor(5) })
     await onPrompt(f.ctx, 'Why is it 18.4%?')
-    expect(f.state.station).toBe('brief')
+    expect(f.state.station).toBe('review')
+    expect(f.state.rowNotes.user[noteKey('Why is it 18.4%?')]?.move).toBe('review')
     expect(f.state.focus).toBeNull()
     expect(f.state.band).toBeNull()
     expect(f.state.turnIndex).toBe(3)
@@ -62,14 +66,14 @@ describe('prompt.submit side', () => {
     const f = makeFake({ prefs: prefsFor(5) })
     f.replies.push(
       answered({
-        good: { text: 'Questioned the result', evidence: 'Why is it 18.4%', kind: 'unchecked_claim' },
-        suggestion: { template: 'Churn means ___', evidence: 'Why is it 18.4%', kind: 'missing_done' },
+        good: { move: 'questioned_result', evidence: 'Why is it 18.4%' },
+        suggestion: { template: 'Churn means [definition]', evidence: 'Why is it 18.4%', kind: 'missing_done' },
       }),
     )
     await onPrompt(f.ctx, 'Why is it 18.4%?')
     await f.flush()
-    expect(f.state.notes[noteKey('Why is it 18.4%?')]).toBe('Questioned the result')
-    expect(f.state.pendingSuggest?.template).toBe('Churn means ___')
+    expect(f.state.rowNotes.user[noteKey('Why is it 18.4%?')]?.note).toBe('Questioned the result')
+    expect(f.state.pendingSuggest?.template).toBe('Churn means [definition]')
     expect(f.state.cost.tokens).toBeGreaterThan(0)
   })
 
@@ -79,7 +83,7 @@ describe('prompt.submit side', () => {
     f.replies.push(answered({ good: { text: 'Questioned the result', evidence: 'Why is it', kind: 'unchecked_claim' } }))
     await onPrompt(f.ctx, 'Why is it 18.4%?')
     await f.flush()
-    expect(f.state.notes).toEqual({})
+    expect(f.state.rowNotes.user[noteKey('Why is it 18.4%?')]?.note).toBeUndefined()
   })
 
   test('session 1 and focus-only cadence make no call C', async () => {
@@ -171,7 +175,7 @@ describe('turn.complete side', () => {
     expect(f.state.band).toBeNull()
   })
 
-  test('verified share_intent moves to Own with one divider; an unverified flag only suggests', async () => {
+  test('flags never move the rail: a verified share_intent only suggests Own, an unverified one nothing', async () => {
     const f = setup(5)
     f.replies.push(
       answered({
@@ -185,17 +189,17 @@ describe('turn.complete side', () => {
     )
     await onTurnComplete(f.ctx, ANSWER, true)
     await f.flush()
-    expect(f.state.station).toBe('own')
-    expect(f.logs).toEqual(['Own · share intent'])
-    expect(f.state.stationReason).toBe('')
+    expect(f.state.station).toBe('review')
+    expect(f.state.band?.suggestion?.station).toBe('own')
+    expect(outers(f)).toEqual([])
 
     const g = setup(5)
     g.replies.push(answered({ flags: [{ type: 'new_task', evidence: 'not in the text' }], finding: FINDING_A.finding }), answered(BAND_B))
     await onTurnComplete(g.ctx, ANSWER, true)
     await g.flush()
     expect(g.state.station).toBe('review')
-    expect(g.state.band?.suggestion?.station).toBe('plan')
-    expect(g.logs).toEqual([])
+    expect(g.state.band?.suggestion).toBeNull()
+    expect(outers(g)).toEqual([])
   })
 
   test('cadence every 3rd turn and focus-only skip the analysis', async () => {
@@ -259,22 +263,18 @@ describe('focus', () => {
     expect(f.state.band?.title).not.toBe('')
   })
 
-  test('focusing a station pre-fills its template when the box is empty', async () => {
+  test('focusing a station suggests its template in the prompt box and never fills it', async () => {
     const f = makeFake({ prefs: prefsFor(5) })
     await focusStation(f.ctx, 'brief')
-    expect(f.fills).toEqual(['This is for ___, who needs it to ___.'])
-    const g = makeFake({ prefs: prefsFor(5) })
-    g.box.text = 'typing'
-    await focusStation(g.ctx, 'brief')
-    expect(g.fills).toEqual([])
+    expect(f.suggested).toEqual(['This is for [audience], who needs it to [decide or do].'])
+    expect(f.fills).toEqual([])
+    await focusStation(f.ctx, 'plan')
+    expect(f.suggested.at(-1)).toBe('The goal is [goal], and what must not change is [limits].')
   })
 
-  test('a new template replaces the previous coach template, a chip never lands on top of one', async () => {
+  test('a chip replaces a coach template and lands after the person\'s own words', async () => {
     const f = makeFake({ prefs: prefsFor(5) })
-    await focusStation(f.ctx, 'brief')
-    await focusStation(f.ctx, 'plan')
-    expect(f.box.text).toBe('The goal is ___, and what must not change is ___.')
-    expect(f.modes).toEqual(['replace', 'replace'])
+    await fillFromCoach(f.ctx, 'The goal is ___.', true)
     await fillFromCoach(f.ctx, 'Where does 18.4% come from?')
     expect(f.box.text).toBe('Where does 18.4% come from?')
     f.box.text = 'my own words '
@@ -322,7 +322,7 @@ describe('Own checks', () => {
     expect(f.state.station).toBe('own')
     expect(f.state.ownCheck?.held).toBe(false)
     expect(f.state.ownCheck?.checks).toHaveLength(3)
-    expect(f.logs).toEqual(['Own · git commit'])
+    expect(outers(f)).toEqual(['Own · git commit'])
   })
 
   test('with pausePushes on, the push is denied and the band holds it', async () => {
@@ -333,9 +333,9 @@ describe('Own checks', () => {
     expect(f.state.ownCheck?.held).toBe(true)
     expect(f.state.ownCheck?.title).toContain('Mette')
     expect(f.state.ownCheck?.source).toEqual(['git push', 'email to Mette'])
-    expect(f.logs).toEqual(['Own · push paused'])
+    expect(outers(f)).toEqual(['Own · push paused'])
     expect(await onPush(f.ctx, 'push', 'git push')).toBe(OWN_DENY_TEXT)
-    expect(f.logs).toHaveLength(1)
+    expect(outers(f)).toHaveLength(1)
   })
 
   test('finishing the checks sets a one-time pass and asks Claude to go ahead', async () => {
@@ -376,7 +376,7 @@ describe('Own checks', () => {
     const f = off()
     expect(await onPush(f.ctx, 'push', 'git push')).toBeNull()
     expect(f.state.ownCheck?.held).toBe(false)
-    expect(f.logs).toEqual(['Own · git push'])
+    expect(outers(f)).toEqual(['Own · git push'])
     await finishOwn(f.ctx)
     expect(f.submitted).toEqual([])
     expect(f.state.pushPass).toBe(false)
@@ -423,21 +423,11 @@ describe('Own checks', () => {
     await onPush(f.ctx, 'commit', 'git commit')
     f.state = { ...f.state, station: 'review', ownCheck: null }
     await onPush(f.ctx, 'push', 'git push')
-    expect(f.logs).toHaveLength(1)
+    expect(outers(f)).toHaveLength(1)
   })
 })
 
 describe('preview and rule notes', () => {
-  test('the rule note fires for obvious moves after a Review only', () => {
-    expect(ruleNote('Use contract end instead. Go.', 'review')?.text).toBe('Corrected Claude')
-    expect(ruleNote('No, that is not what I asked', 'review')?.text).toBe('Corrected Claude')
-    expect(ruleNote("That's wrong, the base is Q3", 'review')?.text).toBe('Corrected Claude')
-    expect(ruleNote('How did you get 18.4%?', 'review')?.text).toBe('Questioned the result')
-    expect(ruleNote('Are you sure about that?', 'review')?.text).toBe('Questioned the result')
-    expect(ruleNote('How did you get 18.4%?', 'brief')).toBeNull()
-    expect(ruleNote('Write the summary', 'review')).toBeNull()
-  })
-
   test('the note key survives spacing and case', () => {
     expect(noteKey('  Why   is it\n18.4%? ')).toBe(noteKey('why is it 18.4%?'))
   })
@@ -445,15 +435,17 @@ describe('preview and rule notes', () => {
   test('a rule note shows without any model call (session 2)', async () => {
     const f = makeFake({ station: 'review', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, cadence: 'focus' } }) })
     await onPrompt(f.ctx, 'Use contract end instead. Go.')
-    expect(f.state.notes[noteKey('Use contract end instead. Go.')]).toBe('Corrected Claude')
-    expect(f.state.latestNote).toEqual({ turn: 1, text: 'Corrected Claude' })
+    expect(f.state.rowNotes.user[noteKey('Use contract end instead. Go.')]?.note).toBe('Corrected Claude')
+    expect(f.state.rowNotes.user[noteKey('Use contract end instead. Go.')]?.move).toBe('review')
+    expect(f.state.station).toBe('review')
+    expect(f.state.moveNote).toBe('questioned the result')
     expect(f.requests).toHaveLength(0)
   })
 
   test('the note is also stored under the row id once the row is known', async () => {
     const f = makeFake({ station: 'review', rows: { user: 'row-1', reply: '', userTurn: 1, replyTurn: 0 }, turnIndex: 0, prefs: prefsFor(2) })
     await onPrompt(f.ctx, 'Are you sure about the base?')
-    expect(f.state.notes['row-1']).toBe('Questioned the result')
+    expect(f.state.rowNotes.user['row-1']?.note).toBe('Questioned the result')
   })
 
   test('preview bypasses silence, spacing, fade and dismissals', () => {
@@ -474,18 +466,18 @@ describe('preview and rule notes', () => {
   test('in preview, session 1 runs call C, raises a finding and shows the suggestion', async () => {
     const f = makeFake({ station: 'brief', turnIndex: 1, lastPrompt: 'Send the churn numbers to Mette', prefs: prefsFor(1, { settings: { ...INITIAL.prefs.settings, preview: true } }) })
     f.replies.push(
-      answered({ good: { text: 'Audience is clear', evidence: 'to Mette', kind: null }, suggestion: { template: 'Churn means ___', evidence: 'churn numbers', kind: 'missing_done' } }),
+      answered({ good: { move: 'audience_named', evidence: 'to Mette' }, suggestion: { template: 'Churn means [definition]', evidence: 'churn numbers', kind: 'missing_done' } }),
     )
     await onPrompt(f.ctx, 'Send the churn numbers to Mette')
     await f.flush()
-    expect(f.state.notes[noteKey('Send the churn numbers to Mette')]).toBe('Audience is clear')
-    expect(f.state.pendingSuggest?.template).toBe('Churn means ___')
+    expect(f.state.rowNotes.user[noteKey('Send the churn numbers to Mette')]?.note).toBe('Audience is named')
+    expect(f.state.pendingSuggest?.template).toBe('Churn means [definition]')
     f.state = { ...f.state, turnIndex: 6 }
     f.replies.push(answered(FINDING_A), answered(BAND_B))
     await onTurnComplete(f.ctx, ANSWER, true)
     await f.flush()
     expect(f.state.band?.kind).toBe('unchecked_claim')
-    expect(f.suggested).toEqual(['Churn means ___'])
+    expect(f.suggested).toEqual(['Churn means [definition]'])
   })
 
   test('a Review band is tied to the latest reply', async () => {
@@ -496,5 +488,179 @@ describe('preview and rule notes', () => {
     expect(f.state.bandRow).toBe('reply')
     await dismissBand(f.ctx)
     expect(f.state.bandRow).toBe('')
+  })
+})
+
+describe('moves, trace and reply notes', () => {
+  const PROMPT = 'Write the summary'
+
+  test('a plan or Own move steps out and names itself on the user row', async () => {
+    const f = makeFake({ station: 'review', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, cadence: 'focus' } }) })
+    await onPrompt(f.ctx, 'Make a plan for the migration.')
+    expect(f.state.station).toBe('plan')
+    expect(f.state.moveNote).toBe('asked for a plan')
+    expect(outers(f)).toEqual(['Plan · asked for a plan'])
+    const g = makeFake({ station: 'review', prefs: prefsFor(2) })
+    await onPrompt(g.ctx, 'Push it and draft the email to Mette.')
+    expect(g.state.station).toBe('own')
+    expect(outers(g)).toEqual(['Own · about to ship'])
+    await onTurnComplete(g.ctx, 'Done.', true)
+    expect(g.state.station).toBe('review')
+    expect(g.state.moveNote).toBe('')
+  })
+
+  test('Haiku overrides the rule only with evidence, while the turn runs', async () => {
+    const f = makeFake({ station: 'review', prefs: prefsFor(2) })
+    f.replies.push(answered({ move: { kind: 'review', evidence: 'Write the summary' } }))
+    await onPrompt(f.ctx, PROMPT)
+    expect(f.state.station).toBe('brief')
+    await f.flush()
+    expect(f.state.station).toBe('review')
+    expect(f.state.rowNotes.user[noteKey(PROMPT)]?.move).toBe('review')
+    const g = makeFake({ station: 'review', prefs: prefsFor(2) })
+    g.replies.push(answered({ move: { kind: 'review', evidence: 'words that are not there at all' } }))
+    await onPrompt(g.ctx, PROMPT)
+    await g.flush()
+    expect(g.state.station).toBe('brief')
+  })
+
+  test('the trace records the calls and why a finding did not show (session 1)', async () => {
+    const f = makeFake({ station: 'brief', turnIndex: 6, lastPrompt: 'Send the churn numbers to Mette', prefs: prefsFor(1) })
+    f.replies.push(answered(FINDING_A))
+    await onTurnComplete(f.ctx, ANSWER, true)
+    await f.flush()
+    const lines = f.state.trace.map(t => `${t.call}:${t.ok}:${t.detail}`)
+    expect(lines[0]).toContain('A:true:ok · finding unchecked_claim (high) → kept')
+    expect(lines[1]).toContain('gate:false:unchecked_claim not raised: session-1')
+  })
+
+  test('the trace says why a model finding was dropped and how many chips survived', async () => {
+    const f = makeFake({ station: 'brief', turnIndex: 6, lastPrompt: 'Send the churn numbers to Mette', prefs: prefsFor(5) })
+    f.replies.push(
+      answered({ finding: { station: 'review', kind: 'unchecked_claim', evidence: ['18.4%'], confidence: 'low' } }),
+    )
+    await onTurnComplete(f.ctx, ANSWER, true)
+    await f.flush()
+    expect(f.state.trace[0]?.detail).toContain('→ confidence low')
+    const g = makeFake({ station: 'brief', turnIndex: 6, lastPrompt: 'Send the churn numbers to Mette', prefs: prefsFor(5) })
+    g.replies.push(answered(FINDING_A), answered({ title: 'T', chips: [{ label: 'Be more specific', fill: 'x', evidence: '18.4%' }, { label: 'Source for 18.4%', fill: 'y', evidence: '18.4%' }] }))
+    await onTurnComplete(g.ctx, ANSWER, true)
+    await g.flush()
+    expect(g.state.trace[1]?.detail).toContain('chips 1/2 kept (dropped: generic)')
+    // Call B kept one of two chips, so the finding falls back to the station's own band with the quote.
+    expect(g.state.band?.source).toBe('finding')
+    expect(g.state.band?.kind).toBe('unchecked_claim')
+    expect(g.state.band?.evidence).toEqual(['18.4%'])
+  })
+
+  test('in preview a low finding with one chip still shows a band', async () => {
+    const settings = { ...INITIAL.prefs.settings, preview: true }
+    const f = makeFake({ station: 'brief', turnIndex: 6, lastPrompt: 'Send the churn numbers to Mette', prefs: prefsFor(1, { settings }) })
+    f.replies.push(
+      answered({ finding: { station: 'review', kind: 'unchecked_claim', evidence: ['18.4%'], confidence: 'low' } }),
+      answered({ title: 'The 18.4% has no source yet', chips: [{ label: 'Source for 18.4%', fill: 'Where from?', evidence: '18.4%' }] }),
+    )
+    await onTurnComplete(f.ctx, ANSWER, true)
+    await f.flush()
+    expect(f.state.band?.chips).toHaveLength(2)
+  })
+
+  test('the reply carries up to two verbatim claims, each cut to 24 characters', async () => {
+    const f = makeFake({ station: 'brief', turnIndex: 4, lastPrompt: PROMPT, prefs: prefsFor(5) })
+    f.replies.push(
+      answered({ card: { unchecked_claims: ['18.4%', 'SMB is the driver', 'a claim nobody wrote anywhere'] } }),
+    )
+    await onTurnComplete(f.ctx, ANSWER, true)
+    await f.flush()
+    expect(f.state.rowNotes.reply).toEqual({ turn: 4, check: ['18.4%', 'SMB is the driver'] })
+    const g = makeFake({ station: 'brief', turnIndex: 4, lastPrompt: PROMPT, prefs: prefsFor(5) })
+    g.replies.push(answered({ card: { unchecked_claims: ['Churn is 18.4% and SMB is the driver'] } }))
+    await onTurnComplete(g.ctx, ANSWER, true)
+    await g.flush()
+    expect(g.state.rowNotes.reply?.check[0]?.length).toBeLessThanOrEqual(24)
+  })
+
+  test('a suggestion waits once for an empty box, then shows', async () => {
+    const f = makeFake({ pendingSuggest: { template: 'Churn means ___', kind: 'missing_done' }, prefs: prefsFor(5) })
+    f.box.text = 'typing'
+    await showSuggestion(f.ctx)
+    expect(f.suggested).toEqual([])
+    expect(f.state.trace[0]?.detail).toContain('retrying once')
+    f.box.text = ''
+    await f.flush()
+    expect(f.suggested).toEqual(['Churn means ___'])
+    expect(f.state.trace.some(t => t.call === 'suggest' && t.ok)).toBe(true)
+  })
+})
+
+describe('moved on and fallback band', () => {
+  test('leaving Review for another move is remembered on the user row', async () => {
+    const f = makeFake({ station: 'review', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, cadence: 'focus' } }) })
+    await onPrompt(f.ctx, 'Now do the same for Q2.')
+    expect(f.state.rowNotes.user[noteKey('Now do the same for Q2.')]).toMatchObject({ move: 'brief', from: 'review' })
+    const g = makeFake({ station: 'review', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, cadence: 'focus' } }) })
+    await onPrompt(g.ctx, 'Why did you exclude the trial accounts?')
+    expect(g.state.rowNotes.user[noteKey('Why did you exclude the trial accounts?')]?.from).toBeUndefined()
+    const h = makeFake({ station: 'brief', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, cadence: 'focus' } }) })
+    await onPrompt(h.ctx, 'Now do the same for Q2.')
+    expect(h.state.rowNotes.user[noteKey('Now do the same for Q2.')]?.from).toBeUndefined()
+  })
+
+  test('when call B is not JSON but call A kept a finding, the station band shows with the finding', async () => {
+    const f = makeFake({ station: 'brief', turnIndex: 6, lastPrompt: 'Send the churn numbers to Mette', prefs: prefsFor(5) })
+    f.replies.push(answered(FINDING_A), answered('this is not json at all'))
+    await onTurnComplete(f.ctx, ANSWER, true)
+    await f.flush()
+    expect(f.state.band).toMatchObject({ source: 'finding', kind: 'unchecked_claim', station: 'review', evidence: ['18.4%'] })
+    expect(f.state.band?.title).not.toBe('')
+    expect(f.state.band?.chips.length).toBeGreaterThanOrEqual(2)
+    expect(f.state.trace.some(t => t.detail === 'fallback band for unchecked_claim')).toBe(true)
+  })
+})
+
+describe('Plan and Own from everyday prompts', () => {
+  test('starting new work is Plan, with its caption on the row and the rail', async () => {
+    const f = makeFake({ station: 'review', prefs: prefsFor(2) })
+    await onPrompt(f.ctx, 'I want help with a new sales pitch')
+    expect(f.state.station).toBe('plan')
+    expect(f.state.moveNote).toBe('starting new work')
+    expect(f.state.rowNotes.user[noteKey('I want help with a new sales pitch')]?.from).toBeUndefined()
+  })
+
+  test('taking a result as final is Own and brings up the checks without holding anything', async () => {
+    const f = makeFake({ station: 'review', prefs: prefsFor(2) })
+    await onPrompt(f.ctx, 'That looks good!')
+    expect(f.state.station).toBe('own')
+    expect(f.state.ownCheck?.held).toBe(false)
+    expect(f.state.ownCheck?.checks.length).toBe(3)
+  })
+})
+
+describe('Haiku does not overrule a rule', () => {
+  test('a rule-based Plan stays a Plan when Haiku says brief', async () => {
+    const f = makeFake({ station: 'review', prefs: prefsFor(2) })
+    f.replies.push(answered({ good: null, suggestion: null, move: { kind: 'brief', evidence: 'kundebrief' } }))
+    await onPrompt(f.ctx, 'Jeg har brug for hjælp til en kundebrief')
+    await f.flush()
+    expect(f.state.station).toBe('plan')
+  })
+})
+
+describe('preview always shows the step suggestions', () => {
+  test('no finding in preview: the band offers the Review chips after a reply', async () => {
+    const f = makeFake({ station: 'brief', turnIndex: 3, lastPrompt: 'help me with a client brief', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, preview: true } }) })
+    f.replies.push(answered({ card: {}, flags: [], finding: null }))
+    await onTurnComplete(f.ctx, 'Here are a few questions.', true)
+    await f.flush()
+    expect(f.state.band?.station).toBe('review')
+    expect(f.state.band?.chips.map(c => c.label)).toContain('What did you assume?')
+  })
+
+  test('outside preview a turn with no finding stays silent', async () => {
+    const f = makeFake({ station: 'brief', turnIndex: 3, lastPrompt: 'help me with a client brief', prefs: prefsFor(5) })
+    f.replies.push(answered({ card: {}, flags: [], finding: null }))
+    await onTurnComplete(f.ctx, 'Here are a few questions.', true)
+    await f.flush()
+    expect(f.state.band).toBeNull()
   })
 })

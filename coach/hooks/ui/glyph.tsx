@@ -53,6 +53,38 @@ const CELLS: Record<CoachStation, { on: string; off: string; gap: string }> = {
 
 type SvgFn = (p: { source: string; alt: string; width?: number; height?: number }) => never
 
+const CHECK_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 10" width="12" height="10"><path d="M1.5 5.5 4.5 8.5 10.5 1.5" fill="none" stroke="#8A8782" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
+const HALF_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" width="11" height="11"><circle cx="6" cy="6" r="4.6" fill="none" stroke="#8A8782" stroke-width="1.4"/><path d="M6 1.4 A4.6 4.6 0 0 1 6 10.6 Z" fill="#8A8782"/></svg>'
+const CROSS_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" width="10" height="10"><path d="M2.5 2.5 9.5 9.5 M9.5 2.5 2.5 9.5" fill="none" stroke="#8A8782" stroke-width="1.6" stroke-linecap="round"/></svg>'
+
+export type Mark = 'good' | 'comment' | 'issue'
+
+// The three marks on a person's message: ✓ a move worth repeating, ◐ something it could still say, ✕ a problem.
+export function mark(ui: Ui, kind: Mark) {
+  if (kind === 'good') return checkMark(ui)
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  if (Svg && !isTerminal(ui)) {
+    return kind === 'comment' ? <Svg source={HALF_SVG} alt="comment" width={11} height={11} /> : <Svg source={CROSS_SVG} alt="issue" width={10} height={10} />
+  }
+  return <ui.Text dimColor>{kind === 'comment' ? '◐' : '✕'}</ui.Text>
+}
+
+// A rule that fills the rest of a row, after a chapter line's caption.
+export function fillRule(ui: Ui) {
+  return pieces(ui, 60)
+}
+
+// A drawn tick in the label grey: the ✓ glyph falls back to another font on remote surfaces.
+export function checkMark(ui: Ui) {
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  if (Svg && !isTerminal(ui)) return <Svg source={CHECK_SVG} alt="done" width={12} height={10} />
+  return <ui.Text dimColor>✓</ui.Text>
+}
+
 export function glyph(ui: Ui, active: CoachStation, { mini = false, pulse = false }: GlyphOptions = {}) {
   const { Box, Text } = ui
   const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
@@ -87,17 +119,26 @@ export function glyph(ui: Ui, active: CoachStation, { mini = false, pulse = fals
 // One thin rule between the band's content and the rail. It fills the slot's width, is 1px tall (an unset height
 // would scale to a fraction of a pixel), has a blank row above and below, and is never
 // drawn as dashes on a remote surface.
-export function hairline(ui: Ui, columns: number) {
+// A line across the rest of a row, built from short pieces in a box that clips what does not fit. A single
+// long text line wraps to two lines on desktop, and a truncating one ends in "…"; pieces avoid both.
+// The grey of a step bar that is not lit (35% of #888888 over the page), so the rule continues the glyph.
+export const RULE_GREY = '#D1CFCB'
+
+function pieces(ui: Ui, count: number) {
   const { Box, Text } = ui
-  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
-  if (Svg && !isTerminal(ui)) {
-    const source =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 1" preserveAspectRatio="none"><rect x="0" y="0" width="100" height="1" fill="#8A8782" fill-opacity="0.25"/></svg>'
-    return (
-      <Box height={1} width="100%" flexShrink={0} marginY={1}>
-        <Svg source={source} alt="" height={1} />
-      </Box>
-    )
-  }
-  return <Text dimColor>{'─'.repeat(Math.max(1, columns))}</Text>
+  const tone = isTerminal(ui) ? { dimColor: true } : { color: RULE_GREY }
+  return (
+    <Box flexDirection="row" flexWrap="nowrap" flexGrow={1} flexShrink={1} overflow="hidden" minWidth={2}>
+      {Array.from({ length: count }, (_, i) => (
+        <Box key={`r${i}`} flexShrink={0}>
+          <Text {...tone}>────</Text>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+// The band's rule across its width.
+export function hairline(ui: Ui, _columns: number) {
+  return <ui.Box flexDirection="row">{pieces(ui, 60)}</ui.Box>
 }
