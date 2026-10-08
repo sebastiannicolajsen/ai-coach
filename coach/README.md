@@ -12,14 +12,14 @@ A quiet thinking partner for working with Claude Code. It shows which step of th
 claude --plugin-dir /path/to/unzipped/coach
 ```
 
-**From this repository** (recommended inside Implement): add the repository as a local marketplace once, then install.
+**From this repository**: add the repository as a local marketplace once, then install.
 
 ```bash
 claude plugin marketplace add /path/to/ai-coach
 ```
 
 ```bash
-claude plugin install coach@implement-ai-coach
+claude plugin install coach@ai-coach
 ```
 
 Start a new chat afterwards and run `/coach help` to see every command.
@@ -100,7 +100,7 @@ Settings are shared by every chat and read again with each message.
 - **Keeps in memory** a small context card for the session only.
 - **Stores on disk** counters and settings only, never message text.
 
-Mods are not sandboxed and see every prompt. Distribute through Implement's managed plugin marketplace after IT security review; client and public-sector work needs the DPO's sign-off.
+Mods are not sandboxed and see every prompt. Distribute through your organisation's managed plugin marketplace after a security review; client and public-sector work needs sign-off from your data protection officer.
 
 ## For developers
 
@@ -114,7 +114,7 @@ claude plugin validate .
 claude plugin test .
 ```
 
-After a change, raise the version in `.claude-plugin/plugin.json`, run `claude plugin update coach@implement-ai-coach`, and rebuild the zip from the `coach/` folder:
+After a change, raise the version in `.claude-plugin/plugin.json`, run `claude plugin update coach@ai-coach`, and rebuild the zip from the `coach/` folder:
 
 ```bash
 git ls-files -co --exclude-standard | zip -q ../dist/coach-<version>.zip -@

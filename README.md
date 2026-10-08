@@ -6,7 +6,6 @@
 
 - **Download:** [`dist/coach-0.2.0.zip`](dist/coach-0.2.0.zip)
 - **How it works, commands, settings and install:** [`coach/README.md`](coach/README.md)
-- **Design brief and specs:** [`briefs/`](briefs/)
 
 Install from this repository:
 
@@ -15,7 +14,7 @@ claude plugin marketplace add /path/to/ai-coach
 ```
 
 ```bash
-claude plugin install coach@implement-ai-coach
+claude plugin install coach@ai-coach
 ```
 
 Then start a new chat and run `/coach help`.
