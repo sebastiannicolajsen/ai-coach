@@ -1,8 +1,8 @@
 import type { ElementTable } from 'claude-code'
-import type { CoachCadence, CoachModel, CoachPausePushes } from '../../types'
+import type { CoachCadence, CoachModel, CoachModelSwitch, CoachPausePushes } from '../../types'
 import { type Dollar, saveSettings, savePrefs } from '../actions'
 import { aboutLine } from '../card'
-import { ATTRIBUTION, COACH_MODELS, STARTER_CHIPS, STATIONS, STATION_MEANING, STATION_NAME } from '../config'
+import { ATTRIBUTION, COACH_MODELS, MODEL_SWITCH_LABEL, STARTER_CHIPS, STATIONS, STATION_MEANING, STATION_NAME } from '../config'
 import { costLine } from '../cost'
 import { askMeta } from '../meta'
 import { type Ui, glyph, withSurface, wordColor } from './glyph'
@@ -10,6 +10,12 @@ import { type Ui, glyph, withSurface, wordColor } from './glyph'
 type Table = ElementTable<'terminal' | 'desktop' | 'vscode'>
 
 const MODEL_OPTIONS: [CoachModel, string][] = (Object.keys(COACH_MODELS) as CoachModel[]).map(k => [k, COACH_MODELS[k].label])
+
+const SWITCH_OPTIONS: [CoachModelSwitch, string][] = [
+  ['ask', MODEL_SWITCH_LABEL.ask],
+  ['auto', MODEL_SWITCH_LABEL.auto],
+  ['off', MODEL_SWITCH_LABEL.off],
+]
 
 const CADENCE: [CoachCadence, string][] = [
   ['every', 'Every turn'],
@@ -80,6 +86,8 @@ async function settingsView(ui: Table & Ui, $: Dollar) {
     <Box flexDirection="column" gap={1}>
       {section(ui, 'Settings')}
       {settingRow(ui, 'set-model', 'Feedback model', s.model, MODEL_OPTIONS, v => void saveSettings($, { model: v as CoachModel }))}
+      {settingRow(ui, 'set-recommend', 'Recommend a model', s.recommendModel ? 'on' : 'off', [['on', 'On'], ['off', 'Off']], v => void saveSettings($, { recommendModel: v === 'on' }))}
+      {settingRow(ui, 'set-switch', 'Before a prompt runs', s.modelSwitch, SWITCH_OPTIONS, v => void saveSettings($, { modelSwitch: v as CoachModelSwitch }))}
       {settingRow(ui, 'set-cadence', 'Coach checks', s.cadence, CADENCE, v => void saveSettings($, { cadence: v as CoachCadence }))}
       {settingRow(ui, 'set-pause', 'Pause pushes for a check', s.pausePushes === 'on' ? 'on' : 'off', ONOFF, v => void saveSettings($, { pausePushes: v as CoachPausePushes }))}
       {settingRow(ui, 'set-labels', 'Labels in the chat', s.labels ? 'on' : 'off', [['on', 'On'], ['off', 'Off']], v => void saveSettings($, { labels: v === 'on' }))}

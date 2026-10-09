@@ -51,7 +51,92 @@ const CELLS: Record<CoachStation, { on: string; off: string; gap: string }> = {
   own: { on: '━', off: '─', gap: '' },
 }
 
-type SvgFn = (p: { source: string; alt: string; width?: number; height?: number }) => never
+type SvgFn = (p: { source: string; alt: string; width?: number; height?: number; isInteractive?: boolean }) => never
+
+// Claude's own working mark: a small clay asterisk that turns and breathes. SMIL needs the interactive frame.
+const SPIN_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" width="12" height="12"><g fill="none" stroke="#D97757" stroke-width="1.5" stroke-linecap="round"><path d="M6 1.5V10.5M1.5 6H10.5M2.8 2.8 9.2 9.2M9.2 2.8 2.8 9.2"/><animateTransform attributeName="transform" type="rotate" from="0 6 6" to="360 6 6" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/></g></svg>'
+
+// A gap of a few pixels: the desktop spaces in whole rows, so a transparent drawing of that height stands in.
+// The terminal has nothing smaller than a row and gets nothing.
+export function spacer(ui: Ui, px: number) {
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  if (!Svg || isTerminal(ui)) return null
+  return <Svg source={`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 ${px}" width="1" height="${px}"></svg>`} alt="space" width={1} height={px} />
+}
+
+const MARK_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" width="11" height="11"><path d="M6 0.8 7.3 4.7 11.2 6 7.3 7.3 6 11.2 4.7 7.3 0.8 6 4.7 4.7Z" fill="#D97757"/></svg>'
+
+// The coach's mark, the ✦ its recommendations carry: in clay, ahead of the suggestions.
+export function coachMark(ui: Ui) {
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  if (Svg && !isTerminal(ui)) return <Svg source={MARK_SVG} alt="Coach suggests" width={11} height={11} />
+  return <ui.Text color="claude">✦</ui.Text>
+}
+
+// Small line icons in the label grey, drawn like the check mark: one beside each control at the step line.
+const LINE = (body: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 12" width="16" height="12"><g fill="none" stroke="#8A8782" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`
+const ICONS = {
+  // A chip: the model Claude runs on.
+  model: LINE('<rect x="3" y="3" width="6" height="6" rx="1.3"/><path d="M5 1.2v1.8M7 1.2v1.8M5 9v1.8M7 9v1.8M1.2 5h1.8M1.2 7h1.8M9 5h1.8M9 7h1.8"/>'),
+  // A speech bubble: ask before switching.
+  ask: LINE('<path d="M2.2 3.3a1.3 1.3 0 0 1 1.3-1.3h5a1.3 1.3 0 0 1 1.3 1.3v3.4a1.3 1.3 0 0 1-1.3 1.3H5.4L3.2 10V8h-.0a1.3 1.3 0 0 1-1-1.3Z"/>'),
+  // Two turning arrows: switch by itself.
+  auto: LINE('<path d="M9.6 4.6A3.8 3.8 0 0 0 2.7 4M2.4 7.4A3.8 3.8 0 0 0 9.3 8"/><path d="M2.5 1.8v2.4h2.4M9.5 10.2V7.8H7.1"/>'),
+  // An arrow into the prompt box: a suggestion fills it.
+  fill: LINE('<path d="M2.5 2v3.6a1.6 1.6 0 0 0 1.6 1.6h5.4"/><path d="M7.4 5 9.6 7.2 7.4 9.4"/>'),
+  // An eye: only show.
+  off: LINE('<path d="M1 6s1.8-3.4 5-3.4S11 6 11 6 9.2 9.4 6 9.4 1 6 1 6Z"/><circle cx="6" cy="6" r="1.4"/>'),
+} as const
+
+export type IconName = keyof typeof ICONS | 'mark'
+
+// A drawn icon beside a control; nothing on the terminal, where the words stand alone.
+export function icon(ui: Ui, name: IconName) {
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  if (!Svg || isTerminal(ui)) return name === 'mark' ? coachMark(ui) : null
+  if (name === 'mark') return coachMark(ui)
+  return <Svg source={ICONS[name]} alt={name} width={16} height={12} />
+}
+
+const EFFORT_LEVEL = { low: 1, medium: 2, high: 3, xhigh: 4, max: 5 } as const
+
+// Effort as one small vertical bar that fills from the bottom, low to max; clay when it is a recommendation.
+export function effortBar(ui: Ui, effort: keyof typeof EFFORT_LEVEL | null | undefined, isRecommended = false) {
+  if (!effort) return null
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  const level = EFFORT_LEVEL[effort]
+  if (!Svg || isTerminal(ui)) return <ui.Text dimColor={!isRecommended}>{' ▁▂▄▆█'[level]}</ui.Text>
+  const fill = isRecommended ? '#D97757' : '#8A8782'
+  const filled = (10 * level) / 5
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 12" width="9" height="12"><rect x="3.5" y="1" width="4" height="10" rx="1.2" fill="none" stroke="${fill}" stroke-opacity="0.55" stroke-width="1"/><rect x="3.5" y="${(11 - filled).toFixed(1)}" width="4" height="${filled.toFixed(1)}" rx="1.2" fill="${fill}"/></svg>`
+  return <Svg source={source} alt={`${effort} effort`} width={9} height={12} />
+}
+
+// The working mark alone, for a slot that is still being decided.
+export function spinMark(ui: Ui) {
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  if (Svg && !isTerminal(ui)) return <Svg source={SPIN_SVG} alt="working" width={12} height={12} isInteractive />
+  return <ui.Text color="claude">✻</ui.Text>
+}
+
+// A working row: the mark and a dim word, in the voice of Claude's own spinner.
+export function spinner(ui: Ui, text: string) {
+  const { Box, Text } = ui
+  const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
+  return (
+    <Box flexDirection="row" gap={1} alignItems="center">
+      {Svg && !isTerminal(ui) ? (
+        <Svg source={SPIN_SVG} alt="working" width={12} height={12} isInteractive />
+      ) : (
+        <Text color="claude">✻</Text>
+      )}
+      <Text dimColor>{text}…</Text>
+    </Box>
+  )
+}
 
 const CHECK_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 10" width="12" height="10"><path d="M1.5 5.5 4.5 8.5 10.5 1.5" fill="none" stroke="#8A8782" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'

@@ -1,6 +1,6 @@
 import type { Dollar } from '../actions'
 import { STATION_HEX } from '../config'
-import { type Ui, checkMark, glyph, withSurface, wordColor } from './glyph'
+import { type Ui, checkMark, coachMark, glyph, icon, spinner, withSurface, wordColor } from './glyph'
 
 // `/coach gallery`: every candidate drawing technique side by side, numbered, inside a transcript row,
 // so one screenshot shows which ones the surface paints the way the tests assume.
@@ -28,7 +28,7 @@ function row(ui: Ui, label: string, body: unknown) {
 
 export async function renderGallery($: Dollar, e: Parameters<Dollar['ui']['resolve']>[0]) {
   const ui = withSurface($.ui.resolve(e), (e as { surface: string }).surface)
-  const { Box, Text, Markdown } = ui as Ui & { Markdown: (p: { text: string; dimColor?: boolean }) => never }
+  const { Box, Text, Button, Markdown } = ui as Ui & { Markdown: (p: { text: string; dimColor?: boolean }) => never }
   const Svg = (ui as unknown as { Svg?: SvgFn }).Svg
   const svg = (source: string, width?: number, height?: number) =>
     Svg ? <Svg source={source} alt="" width={width} height={height} /> : <Text dimColor>(no Svg here)</Text>
@@ -65,6 +65,20 @@ export async function renderGallery($: Dollar, e: Parameters<Dollar['ui']['resol
       {row(ui, 'K1', <>{checkMark(ui)}<Text dimColor>Audience is named</Text></>)}
       {row(ui, 'K2', <Text dimColor>✓ Audience is named</Text>)}
       {row(ui, 'K3', <Text dimColor>✔ Audience is named</Text>)}
+
+      <Text dimColor>Suggestion styles (which looks best?)</Text>
+      {row(ui, 'B1', <>{['Check the 12%', 'Compare delivery terms'].map(l => <Button key={`b1-${l}`} label={l} onPress={() => {}} />)}</>)}
+      {row(ui, 'B2', <>{[coachMark(ui), ...['Check the 12%', 'Compare delivery terms'].map(l => <Button key={`b2-${l}`} variant="secondary" label={l} onPress={() => {}} />)]}</>)}
+      {row(ui, 'B3', <>{[coachMark(ui), ...['Check the 12%', 'Compare delivery terms'].map(l => <Button key={`b3-${l}`} variant="primary" label={l} onPress={() => {}} />)]}</>)}
+      {row(ui, 'B4', <>{[coachMark(ui), ...['Check the 12%', 'Compare delivery terms'].map(l => <Button key={`b4-${l}`} plain label={`${l} ↗`} onPress={() => {}} />)]}</>)}
+      {row(ui, 'B5', <>{['Check the 12%', 'Compare delivery terms'].map(l => <Button key={`b5-${l}`} plain dimColor label={`→ ${l}`} onPress={() => {}} />)}</>)}
+
+      <Text dimColor>Icons beside the step line, and the settings control</Text>
+      {row(ui, 'I1', <>{icon(ui, 'mark') as never}<Text>Opus 5.5 · planning</Text>{icon(ui, 'model') as never}<Text dimColor>Sonnet 5.5</Text>{icon(ui, 'ask') as never}<Text dimColor>Prompt me</Text>{icon(ui, 'auto') as never}<Text dimColor>Auto-select</Text>{icon(ui, 'off') as never}<Text dimColor>Only show</Text></>)}
+      {row(ui, 'I2', <>{['⋯', '•••', '☰', 'Settings'].map(l => <Button key={`i2-${l}`} plain dimColor label={l} onPress={() => {}} />)}</>)}
+
+      <Text dimColor>Working spinner (should turn and breathe)</Text>
+      {row(ui, 'W1', spinner(ui, 'Finding next steps'))}
 
       <Text dimColor>Station colours (word and bar)</Text>
       {row(

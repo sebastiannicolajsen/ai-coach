@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
+
 import { extractJson } from '../hooks/haiku'
 import {
   auditChips,
@@ -182,7 +183,7 @@ describe('prompt note', () => {
       { good: { move: 'goal_stated', evidence: 'not there' }, suggestion: { template: 'no slot at all', evidence: 'A customer has churned' } },
       hay,
     )
-    expect(bad).toEqual({ good: null, suggestion: null, move: null })
+    expect(bad).toEqual({ good: null, suggestion: null, move: null, caption: null })
   })
 
   test('free-text notes are rejected; a fixed move maps to our own words', () => {
@@ -218,5 +219,13 @@ describe('hardening from live traces', () => {
     expect(gap.good).toBeNull()
     const ok = validateNote({ good: { move: 'questioned_result', evidence: 'want help' } }, hay)
     expect(ok.good?.text).toBe('Questioned the result')
+  })
+})
+
+describe('the chapter caption from the prompt reader', () => {
+  test('a specific caption is kept, praise and long ones are not', async () => {
+    expect(validateNote({ caption: 'asks for three angles for the Nordlys pitch.' }, 'x').caption).toBe('asks for three angles for the Nordlys pitch')
+    expect(validateNote({ caption: 'great clear prompt' }, 'x').caption).toBeNull()
+    expect(validateNote({ caption: 'a'.repeat(80) }, 'x').caption).toBeNull()
   })
 })

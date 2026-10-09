@@ -19,9 +19,23 @@ describe('haiku calls', () => {
     expect(extractJson('{broken')).toBeNull()
   })
 
-  test('the input window caps messages at 1,500 characters', () => {
-    const { prompt } = buildInput({ ...input, user: 'u'.repeat(4000), answer: 'a'.repeat(4000) })
-    expect(prompt.length).toBeLessThan(3600)
+  test('the input window caps the prompt at 1,500 characters and the answer at 2,400, keeping its end', () => {
+    const { prompt } = buildInput({ ...input, user: 'u'.repeat(4000), answer: `${'a'.repeat(4000)}THE END` })
+    expect(prompt.length).toBeLessThan(4600)
+    expect(prompt).toContain('THE END')
+  })
+
+  test('earlier exchanges go in, so chips can build on more than the last turn', () => {
+    const { prompt, haystack } = buildInput({
+      ...input,
+      history: [
+        { role: 'user', text: 'Compare the three supplier quotes' },
+        { role: 'assistant', text: 'Option B from Nordlys is 12% cheaper' },
+      ],
+    })
+    expect(prompt).toContain('Earlier in the conversation:')
+    expect(prompt).toContain('Claude: Option B from Nordlys is 12% cheaper')
+    expect(haystack).toContain('Nordlys')
   })
 
   test('call A merges the card and keeps only verified flags and findings', async () => {
@@ -42,7 +56,7 @@ describe('haiku calls', () => {
     expect(r.flags[0]?.hasEvidence).toBe(true)
     expect(r.finding?.kind).toBe('unchecked_claim')
     expect(r.usage).toEqual(usage)
-    expect(seen[0]).toMatchObject({ model: 'haiku', maxTokens: 1200, effort: 'low', timeoutMs: 8000 })
+    expect(seen[0]).toMatchObject({ model: 'haiku', maxTokens: 1600, effort: 'low', timeoutMs: 8000 })
   })
 
   test('failure, rejection or junk never throws and renders nothing', async () => {

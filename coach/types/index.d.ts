@@ -37,7 +37,22 @@ export type CoachSettings = {
   labels: boolean
   hotkeys: boolean
   preview: boolean
+  // Name the model a draft suits as it is typed, and whether the coach sends it there by itself.
+  recommendModel: boolean
+  // Before a prompt is sent to another model than it suits: ask in a dialog, switch by itself, or do nothing.
+  modelSwitch: CoachModelSwitch
 }
+
+export type CoachModelSwitch = 'ask' | 'auto' | 'off'
+
+// The models Claude itself can run a prompt on, from the strongest down.
+export type RouteModel = 'fable' | 'opus' | 'sonnet' | 'haiku'
+// What the coach recommends for the draft in the prompt box, and why, in a few words.
+export type CoachRoute = { draft: string; model: RouteModel; reason: string; effort?: RouteEffort }
+// How hard Claude thinks, from low to max.
+export type RouteEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+// The model the coach runs Claude on: for one prompt (auto-switch) or until changed back (Switch).
+export type CoachModelChoice = { model: RouteModel; sticky: boolean; effort?: RouteEffort }
 
 export type CoachFade = Record<string, boolean[]>
 
@@ -70,6 +85,8 @@ export type CoachUserNote = {
   caption?: string
   // What the prompt could still say, from the slots of the suggested template: "question, audience".
   gap?: string
+  // What the message does in this work, in a few specific words: "asks for three angles for the Nordlys pitch".
+  detail?: string
   turn: number
 }
 export type CoachReplyNote = { turn: number; check: string[] }
@@ -91,6 +108,21 @@ export type CoachState = {
   // The last suggestions the person dismissed, so Coach can show them again until the next prompt.
   hiddenBand: CoachBand | null
   bandLoading: boolean
+  // The prompt whose feedback is still being written (its note key), so its row shows a spinner.
+  noteBusy: string
+  route: CoachRoute | null
+  modelMenuOpen: boolean
+  // The model the person kept their own over, and on which turn, so the dialog does not ask again at once.
+  declined: { model: RouteModel; turn: number } | null
+  modelChoice: CoachModelChoice | null
+  // The session's own model id, as /model shows it.
+  sessionModel: string
+  // The effort the session's own requests carry, as the last main-loop step showed it.
+  sessionEffort: RouteEffort | null
+  // A model judgement is under way, so the model slot shows the working mark.
+  routeBusy: boolean
+  // What to do in the current step, written for this conversation after each reply ("check the 12% figure").
+  stationNote: string
   rowNotes: CoachRowNotes
   moveNote: string
   trace: CoachTrace[]

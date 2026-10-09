@@ -1,5 +1,6 @@
 import type { ModelCompleteRequest, ModelCompleteResult, ModelUsage } from 'claude-code'
-import type { CoachBand, CoachCard, CoachStation, CoachSuggestion } from '../types'
+import type { CoachBand, CoachCard, CoachStation, CoachSuggestion, RouteEffort, RouteModel } from '../types'
+import { parseRoute } from './parse-route'
 import { cardText, mergeCard } from './card'
 import { HAIKU, LIMITS } from './config'
 import { SYSTEM_A, SYSTEM_B, SYSTEM_C } from './prompts'
@@ -24,7 +25,15 @@ export type TurnInput = {
   tools: string[]
   station: CoachStation
   focus: CoachStation | null
+  // Earlier exchanges of the conversation, oldest first, so suggestions can build on more than the last turn.
+  history?: { role: 'user' | 'assistant'; text: string }[]
 }
+
+const HISTORY_CHARS = { user: 300, assistant: 500 }
+
+// The start and the end of a long text: the answer's conclusion is usually at the end.
+export const headTail = (s: string, max: number) =>
+  s.length <= max ? s : `${s.slice(0, Math.round(max * 0.6))}\n…\n${s.slice(-Math.round(max * 0.4))}`
 
 export type CallInfo = { isAnswered: boolean; reason: string }
 
@@ -34,17 +43,21 @@ const head = (s: string, max: number = LIMITS.windowText) => s.slice(0, max)
 
 export function buildInput(i: TurnInput): { prompt: string; haystack: string } {
   const user = head(i.user)
-  const answer = head(i.answer)
+  const answer = headTail(i.answer, LIMITS.answerText)
   const tools = i.tools.join('\n')
   const card = JSON.stringify(i.card)
+  const history = (i.history ?? [])
+    .map(m => `${m.role === 'user' ? 'Person' : 'Claude'}: ${headTail(m.text.trim(), HISTORY_CHARS[m.role])}`)
+    .join('\n\n')
   const prompt = [
     `Context card:\n${card}`,
+    ...(history ? [`Earlier in the conversation:\n${history}`] : []),
     `Last message from the person:\n${user}`,
     `Last answer from Claude:\n${answer}`,
     `Tool calls in the turn:\n${tools || '(none)'}`,
     `Current station: ${i.station}; focus: ${i.focus ?? 'none'}`,
   ].join('\n\n')
-  return { prompt, haystack: [user, answer, tools, cardText(i.card)].join('\n') }
+  return { prompt, haystack: [user, answer, tools, history, cardText(i.card)].join('\n') }
 }
 
 // Haiku sometimes wraps the object in prose or fences, or is cut off at the token cap: take the outermost
@@ -142,7 +155,23 @@ export type TurnAnalysis = {
   findingWhy: string
   // The band, when call A already wrote usable chips with its finding: saves the second call.
   band: CoachBand | null
+  // Chips for the most useful next step, written every turn, finding or not.
+  next: CoachBand | null
+  // The model the likely next prompt suits.
+  nextModel: { model: RouteModel; reason: string; effort?: RouteEffort } | null
+  // What to do in the current step, for the step line.
+  stepNote: string | null
 }
+
+const STEP_NOTE_CHARS = 48
+
+export function cleanStepNote(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const s = v.replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '')
+  return s && s.length <= STEP_NOTE_CHARS ? s : null
+}
+
+const isStationName = (v: unknown): v is CoachStation => v === 'plan' || v === 'brief' || v === 'review' || v === 'own'
 
 const rawLabel = (v: unknown): string => {
   const f = obj(v)
@@ -157,8 +186,14 @@ export async function analyseTurn(complete: Complete, i: TurnInput, isPreview = 
   const band = finding
     ? validateBand({ station: finding.station, title: '', chips: obj(j.finding).chips, suggestion: null }, haystack, finding.station, finding, 'finding', isPreview)
     : null
+  const nx = obj(j.next)
+  const nextStation = isStationName(nx.station) ? nx.station : i.station
+  const next = validateBand({ chips: nx.chips }, haystack, nextStation, null, 'finding', isPreview)
   return {
     band,
+    next: next ? { ...next, kind: 'next_step' } : null,
+    nextModel: parseRoute(j.next_model),
+    stepNote: cleanStepNote(j.step_note),
     card: mergeCard(i.card, j.card),
     flags: validateFlags(j.flags, haystack),
     finding,
@@ -207,6 +242,7 @@ export async function notePrompt(
   good: Note | null
   suggestion: CoachSuggestion | null
   move: CoachStation | null
+  caption: string | null
   usage: ModelUsage | null
   info: CallInfo
 }> {

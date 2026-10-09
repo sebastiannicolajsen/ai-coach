@@ -1,4 +1,4 @@
-import type { CoachSettings, CoachStation, CoachModel } from '../types'
+import type { CoachSettings, CoachStation, CoachModel, RouteModel } from '../types'
 
 export const STATIONS: readonly CoachStation[] = ['plan', 'brief', 'review', 'own']
 
@@ -88,7 +88,26 @@ export const DEFAULT_SETTINGS: CoachSettings = {
   labels: true,
   hotkeys: false,
   preview: false,
+  recommendModel: true,
+  modelSwitch: 'ask',
 }
+
+// The models a prompt can be sent with. Prices per million tokens (input / output), from the same page.
+export const ROUTE_MODELS: Record<RouteModel, { id: string; label: string }> = {
+  fable: { id: 'claude-fable-5-1', label: 'Fable 5.1' },
+  opus: { id: 'claude-opus-5-5', label: 'Opus 5.5' },
+  sonnet: { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
+  haiku: { id: 'claude-haiku-5-5', label: 'Haiku 5.5' },
+}
+
+// The recommender runs on the smallest model, whatever writes the feedback: it reads a draft, not a turn.
+// The three modes, as the toggle beside Coach names them.
+export const MODEL_SWITCH_LABEL = { ask: 'Prompt me', auto: 'Auto-select', off: 'Only show' } as const
+
+// After the person keeps their model, the same recommendation is not asked about for this many prompts.
+export const DECLINE_TURNS = 3
+
+export const ROUTER = { model: 'claude-haiku-5-5', effort: 'low', timeoutMs: 5000, maxTokens: 120, debounceMs: 900, minWords: 4 } as const
 
 // The models the feedback can run on, by their full ids so the price is the right one. Prices per million
 // tokens from https://platform.claude.com/docs/en/about-claude/pricing (read 2026-10-08); ids from the models overview.
@@ -106,7 +125,7 @@ export const HAIKU = {
   model: 'haiku',
   effort: 'low',
   timeoutMs: 8000,
-  maxTokens: { a: 1200, b: 800, c: 400, meta: 600 },
+  maxTokens: { a: 1600, b: 800, c: 400, meta: 600 },
 } as const
 
 export const LIMITS = {
@@ -121,6 +140,8 @@ export const LIMITS = {
   noteText: 50,
   templateText: 120,
   windowText: 1500,
+  answerText: 2400,
+  captionText: 60,
   aboutWords: 10,
   reasonText: 60,
   evidenceMin: 3,

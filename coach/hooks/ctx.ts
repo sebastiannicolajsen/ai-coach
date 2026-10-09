@@ -11,7 +11,8 @@ export type Ctx = {
   prompt: Pick<EngineInterface['prompt'], 'fill' | 'suggest' | 'read' | 'submit'>
   store: Pick<EngineInterface['store'], 'get' | 'set'>
   clock: Pick<EngineInterface['clock'], 'after'>
-  session: Pick<EngineInterface['session'], 'usage' | 'authorize' | 'surface'> & {
+  config: Pick<EngineInterface['config'], 'list' | 'set'>
+  session: Pick<EngineInterface['session'], 'usage' | 'authorize' | 'surface' | 'model'> & {
     messages: () => Promise<{ role: 'user' | 'assistant'; text: string }[]>
   }
 }

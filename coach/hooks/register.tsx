@@ -13,7 +13,8 @@ import {
 } from './actions'
 import { INITIAL } from './initial'
 import type { Ctx } from './ctx'
-import { EDIT_TOOLS, PLAN_FILE_RE, COACH_MODELS, isCoachModel } from './config'
+import { DEFAULT_SETTINGS, EDIT_TOOLS, PLAN_FILE_RE, COACH_MODELS, MODEL_SWITCH_LABEL, ROUTER, isCoachModel } from './config'
+import type { CoachModelSwitch, CoachState } from '../types'
 import { formatTrace } from './trace'
 import { classifyCommand, onPrompt, onPush, onTurnComplete } from './flow'
 import { openAsk } from './meta'
@@ -23,6 +24,8 @@ import { assistantLabel, userLabel } from './ui/labels'
 import { renderGallery } from './ui/gallery'
 import { renderCommandOutput } from './ui/output'
 import { renderPane } from './ui/pane'
+import { chooseForTurn, isSameDraft, recommend, refreshSessionModel, stepEffort, stepModel } from './route'
+import { effortOf } from './parse-route'
 
 // What /coach help prints, one command per line.
 export const HELP = [
@@ -32,6 +35,8 @@ export const HELP = [
   '/coach preview on · off  show every finding from the first session',
   '/coach model haiku · haiku-5.5 · sonnet · opus  pick the model that writes the feedback (Haiku 5.5 is the default)',
   '/coach model  show which model runs now',
+  '/coach recommend on · off  recommend a model for the next prompt, beside Coach (on by default)',
+  '/coach switch ask · auto · off  before a prompt runs on a model it does not suit: ask (default), switch by itself, or never',
   '/coach why  the last analysis: what ran, what came back, what was dropped',
   '/coach settings  open the pane at the settings',
   '/coach ask  open the Stuck? chat',
@@ -41,7 +46,7 @@ export const HELP = [
 
 export const ABOUT = [
   "Reads: your prompts, Claude's answers and tool names in this session, only to follow the loop.",
-  "Sends: short excerpts to Haiku through this session's own connection, and nothing to any other service.",
+  "Sends: short excerpts to the feedback model, and your draft to Haiku 5.5 for a model recommendation, through this session's own connection, and nothing to any other service.",
   'Keeps in memory: a small context card for this session only, cleared when it ends.',
   'Stores on disk: counters and settings only (on or off, sessions, dismissals), never message text.',
 ].join('\n')
@@ -69,11 +74,19 @@ const NOT_THE_PERSON = [
 export const isPersonPrompt = (kind: string): boolean => !NOT_THE_PERSON.includes(kind)
 
 let isCommandRegistered = false
+// Each edit takes a number; only the last one before a pause asks for a recommendation.
+let draftSeq = 0
 let isInitScheduled = false
+
+// State kept from before a reload can miss settings added since; every read fills them in from the defaults.
+export function withDefaults(st: CoachState): CoachState {
+  const s = { ...INITIAL, ...st }
+  return { ...s, prefs: { ...INITIAL.prefs, ...s.prefs, settings: { ...DEFAULT_SETTINGS, ...s.prefs?.settings } } }
+}
 
 function shim($: EngineInterface): Ctx {
   return {
-    get: async () => ({ ...INITIAL, ...(await read($, state)) }),
+    get: async () => withDefaults(await read($, state)),
     patch: (key, fn) => update($, state, s => ({ ...INITIAL, ...s, [key]: fn({ ...INITIAL, ...s }[key]) })),
     ui: {
       log: (text, options) => $.ui.log(text, options),
@@ -91,11 +104,13 @@ function shim($: EngineInterface): Ctx {
     },
     store: { get: key => $.store.get(key), set: (key, value) => $.store.set(key, value) },
     clock: { after: (ms, fn) => $.clock.after(ms, fn) },
+    config: { list: () => $.config.list(), set: args => $.config.set(args) },
     session: {
       usage: args => $.session.usage(args),
       authorize: () => $.session.authorize(),
       surface: () => $.session.surface(),
       messages: () => $.session.messages(),
+      model: () => $.session.model(),
     },
   }
 }
@@ -108,7 +123,7 @@ async function init($: EngineInterface) {
       await $.command.register({
         name: 'coach',
         description: 'Coach: on/off, pane, ask, settings, about',
-        argumentHint: '[help|pane|ask|settings|model [haiku|haiku-5.5|sonnet|opus]|preview [on|off]|why|gallery|about|on|off]',
+        argumentHint: '[help|pane|ask|settings|model [haiku|haiku-5.5|sonnet|opus]|recommend [on|off]|switch [ask|auto|off]|preview [on|off]|why|gallery|about|on|off]',
         immediate: true,
       })
     } catch {
@@ -119,6 +134,7 @@ async function init($: EngineInterface) {
     await c.patch('ready', () => true)
     await loadPrefs(c)
     await refreshUsage(c)
+    await refreshSessionModel(c)
   }
   if (!(await c.get()).sessionCounted) {
     await c.patch('sessionCounted', () => true)
@@ -127,13 +143,13 @@ async function init($: EngineInterface) {
 }
 
 async function scheduleInit($: EngineInterface) {
-  if (isInitScheduled || (await read($, state)).ready) return
+  if (isInitScheduled || withDefaults(await read($, state)).ready) return
   isInitScheduled = true
   $.clock.after(0, () => void init($))
 }
 
 async function isOn($: EngineInterface) {
-  return (await read($, state)).prefs.enabled
+  return withDefaults(await read($, state)).prefs.enabled
 }
 
 async function turnOnIfOff($: EngineInterface) {
@@ -169,6 +185,22 @@ async function runCommand($: EngineInterface, args: string) {
       }
       await saveSettings(c, { model: name })
       return { text: `Feedback model: ${COACH_MODELS[name].label}.` }
+    }
+    case 'recommend':
+    case 'recommend on':
+    case 'recommend off': {
+      const next = arg === 'recommend on' ? true : arg === 'recommend off' ? false : !(await c.get()).prefs.settings.recommendModel
+      await saveSettings(c, { recommendModel: next })
+      return { text: next ? 'Model recommendations on: the coach names the model the next prompt suits, beside Coach.' : 'Model recommendations off.' }
+    }
+    case 'switch':
+    case 'switch ask':
+    case 'switch auto':
+    case 'switch off': {
+      const mode = arg.split(' ')[1] as CoachModelSwitch | undefined
+      if (!mode) return { text: `Model switching: ${MODEL_SWITCH_LABEL[(await c.get()).prefs.settings.modelSwitch].toLowerCase()}. Change it with /coach switch ask, auto or off.` }
+      await saveSettings(c, { modelSwitch: mode })
+      return { text: `Model switching: ${MODEL_SWITCH_LABEL[mode].toLowerCase()}.` }
     }
     case 'gallery':
       return { text: 'Gallery' }
@@ -223,13 +255,51 @@ export const register: Register = on => {
       // Settings live in the store, shared by every chat: read them again, so a change made in another chat
       // (preview, on/off, cadence) applies here from the next message.
       await loadPrefs(shim($))
-      if ((await isOn($)) && isPersonPrompt(e.origin.kind)) await onPrompt(shim($), e.text)
+      if ((await isOn($)) && isPersonPrompt(e.origin.kind)) {
+        draftSeq++
+        await refreshSessionModel(shim($))
+        if (!e.text.trim().startsWith('/')) await chooseForTurn(shim($), e.text)
+        await onPrompt(shim($), e.text)
+      }
     } catch (err) {
       // The coach never gets in the way of a prompt, but the failure shows in /coach why.
       await report($, 'prompt.submit', err)
     }
     return next(e)
   }).catch(($, e, next) => next(e))
+
+  // While the person types: drop a recommendation the draft has moved away from, and once typing pauses ask
+  // the smallest model which model the draft suits. The edit itself is never held up.
+  on('prompt.edit', async ($, e, next) => {
+    const box = await next(e)
+    try {
+      const st = withDefaults(await read($, state))
+      const s = st.prefs.settings
+      if (!st.prefs.enabled || !(s.recommendModel || s.modelSwitch !== 'off')) return box
+      if (st.route && !isSameDraft(st.route, box.text)) await update($, state, x => ({ ...x, route: null }))
+      const mine = ++draftSeq
+      $.clock.after(ROUTER.debounceMs, () => {
+        if (mine === draftSeq) void recommend(shim($)).catch(err => report($, 'recommend', err))
+      })
+    } catch (err) {
+      await report($, 'prompt.edit', err)
+    }
+    return box
+  })
+
+  // The coach's model choice applies to the main loop's requests only, never a subagent's.
+  on('turn.step', async function* ($, e, next) {
+    const st = withDefaults(await read($, state))
+    const isMain = st.prefs.enabled && !e.agentId
+    const model = isMain ? stepModel(st.modelChoice?.model) : null
+    const effort = isMain ? stepEffort(st.modelChoice) : null
+    // The session's own effort, read from a step the coach did not change, for the effort bar.
+    if (isMain && !effort) {
+      const own = effortOf(e.effort)
+      if (own !== st.sessionEffort) await update($, state, x => ({ ...x, sessionEffort: own }))
+    }
+    return yield* next(model || effort ? { ...e, ...(model ? { model } : {}), ...(effort ? { effort } : {}) } : e)
+  })
 
   on('tool.call', async ($, e, next) => {
     try {
@@ -282,7 +352,7 @@ export const register: Register = on => {
   // isExpanded is not a reason to skip: the desktop app draws every row in full, so it is always true there.
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
     const c = shim($)
-    const prefs = (await read($, state)).prefs
+    const prefs = withDefaults(await read($, state)).prefs
     if (!prefs.enabled || !prefs.settings.labels || !isPersonPrompt(e.props.origin.kind)) {
       return next(e)
     }
@@ -291,7 +361,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const c = shim($)
-    const prefs = (await read($, state)).prefs
+    const prefs = withDefaults(await read($, state)).prefs
     if (!prefs.enabled || !prefs.settings.labels || !e.props.isFirstOfReply) return next(e)
     return assistantLabel(c, withSurface(c.ui.resolve(e), e.surface) as never, { requestId: e.requestId, text: e.props.text }, await next(e))
   })

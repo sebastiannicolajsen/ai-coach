@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
+import { couldAdd } from '../hooks/ui/labels'
 import { freshGaps, gapNames, gapTemplate, missingFrom, requestKind } from '../hooks/gaps'
 
 describe('gaps in a short instruction', () => {
@@ -50,5 +51,12 @@ describe('gaps fit the request and are not repeated', () => {
   test('what was named on an earlier prompt is not named again', () => {
     expect(freshGaps(['question', 'data'], ['question, which data'])).toEqual([])
     expect(freshGaps(['audience', 'goal'], ['question, which data', 'audience'])).toEqual(['goal'])
+  })
+})
+
+describe('the comment under a prompt', () => {
+  test('says what to add in words, not slot names', async () => {
+    expect(couldAdd('audience, goal')).toBe('Could say who it is for and what it should achieve')
+    expect(couldAdd('question')).toBe('Could say the question to answer')
   })
 })

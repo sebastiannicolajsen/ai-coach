@@ -49,7 +49,7 @@ export function blockedBecause(g: Gate): string | null {
   if (g.prefs.silenced.includes(g.kind)) return 'silenced'
   if (g.silencedSession.includes(g.kind)) return 'silenced-session'
   if ((g.sessionDismissals[g.kind] ?? 0) >= SESSION_DISMISS_LIMIT) return 'dismissed-twice'
-  if (phase === 'full' && isFaded(g.prefs.fade, g.kind)) return 'faded'
+  if (phase === 'full' && g.kind !== 'next_step' && isFaded(g.prefs.fade, g.kind)) return 'faded'
   if (phase === 'limited' && g.lastBandTurn > 0 && g.turnIndex - g.lastBandTurn < BAND_EVERY)
     return 'spacing'
   return null

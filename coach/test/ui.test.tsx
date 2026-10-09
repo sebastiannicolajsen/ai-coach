@@ -71,12 +71,11 @@ describe('coach band', () => {
   each('Coach opens one row: Focus on four steps left, cost and Turn off right', { prefs: prefs(5), cost: { tokens: 1, usd: 0.02 }, usage: { convUsd: 13.97, isApprox: true } }, async (surface, _h, $) => {
     const ui = await mountBand($, surface)
     expect(await ui.find({ type: 'Text', text: 'Plan' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'deciding what Claude should do' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'deciding what Claude should do' })).toBeUndefined()
     expect(await ui.find({ key: 'pick-plan' })).toBeUndefined()
     await ui.press({ key: 'menu' })
     const buttons = await ui.findAll({ type: 'Button' })
-    expect(buttons.map((b: { key?: string }) => b.key).sort()).toEqual(['menu', 'menu-off', 'pick-brief', 'pick-own', 'pick-plan', 'pick-review'])
-    expect(await ui.find({ key: 'menu-settings' })).toBeUndefined()
+    expect(buttons.map((b: { key?: string }) => b.key).sort()).toEqual(['menu', 'menu-off', 'menu-settings', 'model', 'pick-brief', 'pick-own', 'pick-plan', 'pick-review', 'switch-mode'])
     expect(await ui.find({ type: 'Text', text: 'Focus on' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Coach <1% of this session' })).toBeDefined()
     await ui.press({ key: 'pick-review' })
@@ -93,27 +92,18 @@ describe('coach band', () => {
   })
 
 
-  each('a finding band is only its suggestions: a row of chips and a dismiss, no title, quote or step-out line', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
+  each('a finding band is only its suggestions: a row of chips, no cross, no title, quote or step-out line', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
     const ui = await mountBand($, surface)
     expect(await ui.find({ type: 'Text', text: BAND.title })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /18\.4% · Mette/ })).toBeUndefined()
     expect(await ui.find({ key: 'suggest' })).toBeUndefined()
     expect(await ui.find({ key: 'chip-1' })).toBeDefined()
-    expect(await ui.find({ key: 'dismiss' })).toBeDefined()
+    expect(await ui.find({ key: 'dismiss' })).toBeUndefined()
     await ui.press({ key: 'chip-0' })
     expect(h.seen.fills).toEqual(['Where does 18.4% come from?'])
     await ui.unmount()
   })
 
-
-  each('dismissing hides the band and counts the dismissal', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
-    const ui = await mountBand($, surface)
-    await ui.press({ key: 'dismiss' })
-    expect(await ui.find({ type: 'Text', text: BAND.title })).toBeUndefined()
-    expect(h.box.value.sessionDismissals.unchecked_claim).toBe(1)
-    expect(h.box.value.prefs.dismissals.unchecked_claim).toBe(1)
-    await ui.unmount()
-  })
 
   each('the band never shows mid-turn', { prefs: prefs(5), band: BAND }, async (surface, _h, $) => {
     const ui = await mountBand($, surface, { ...BAND_PROPS, isWorking: true })
@@ -176,15 +166,17 @@ const truncatingDashes = (nodes: N[]) =>
 describe('visual pass', () => {
   const surfaceWord = (surface: string) => (surface === 'desktop' ? '#B06A12' : 'yellow_FOR_SUBAGENTS_ONLY')
 
-  each('rail at rest: one row, one Button, no rule, no bold, no backgrounds', { prefs: prefs(5), station: 'review' }, async (surface, _h, $) => {
+  each('rail at rest: one row, the model suggestion, its mode and Coach, no rule, no bold, no backgrounds', { prefs: prefs(5), station: 'review' }, async (surface, _h, $) => {
     const ui = await mountBand($, surface)
     const nodes = everyNode(await ui.drawn())
-    expect(nodes.filter(n => n.type === 'Button')).toHaveLength(1)
-    expect((await ui.find({ key: 'menu' }))?.props.dimColor).toBeUndefined()
+    expect(nodes.filter(n => n.type === 'Button')).toHaveLength(3)
+    expect(await ui.find({ key: 'model' })).toBeDefined()
+    expect((await ui.find({ key: 'switch-mode' }))?.props.label).toBe('Prompt me')
+    expect((await ui.find({ key: 'menu' }))?.props.label).toBe('⋯')
     expect(nodes.some(n => n.props && 'backgroundColor' in n.props)).toBe(false)
     expect(nodes.some(n => n.props && n.props.bold)).toBe(false)
     expect(JSON.stringify(nodes)).not.toContain('────')
-    expect(nodes.filter(n => n.type === 'Svg').length).toBe(surface === 'desktop' ? 1 : 0)
+    expect(nodes.filter(n => n.type === 'Svg').length).toBe(surface === 'desktop' ? 3 : 0)
     const coloured = nodes.filter(n => n.type === 'Text' && n.props?.color)
     expect(coloured.map(n => n.props?.color)).toContain(surfaceWord(surface))
     expect(coloured).toHaveLength(surface === 'terminal' ? 2 : 1)
@@ -192,7 +184,7 @@ describe('visual pass', () => {
     await ui.unmount()
   })
 
-  each('finding band: no header row, × on the title row, native chips, no rule', { prefs: prefs(5), band: BAND }, async (surface, _h, $) => {
+  each('finding band: no header row, no cross, plain chips with an arrow, no rule', { prefs: prefs(5), band: BAND }, async (surface, _h, $) => {
     const ui = await mountBand($, surface, { ...BAND_PROPS, bodyColumns: 40 })
     const nodes = everyNode(await ui.drawn())
     expect(nodes.some(n => n.props && 'backgroundColor' in n.props)).toBe(false)
@@ -202,8 +194,8 @@ describe('visual pass', () => {
     expect(truncatingDashes(nodes)).toHaveLength(0)
     expect(nodes.filter(n => n.type === 'Svg' && n.props?.alt === '')).toHaveLength(0)
     expect(JSON.stringify(await ui.drawn())).not.toContain('Focus')
-    expect((await ui.find({ key: 'chip-0' }))?.props.plain).toBeUndefined()
-    expect((await ui.find({ key: 'dismiss' }))?.props.role).toBe('dismiss')
+    expect((await ui.find({ key: 'chip-0' }))?.props.plain).toBe(true)
+    expect(await ui.find({ key: 'dismiss' })).toBeUndefined()
     expect(await ui.find({ key: 'ask' })).toBeUndefined()
     await ui.unmount()
   })
@@ -346,11 +338,13 @@ describe('the chapter line', () => {
     await ui.unmount()
   })
 
-  each('the chapter line holds move, caption and rule; the ✓ note sits under the bubble', { prefs: prefs(2), rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
+  each('the chapter line sits above the bubble, never over it; the ✓ note sits under the bubble', { prefs: prefs(2), rowNotes: userNote(USER_PROPS.text) }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', USER_PROPS)
     const tree = await ui.drawn()
     const nodes = everyNode(tree)
+    // Above the bubble, in the flow, never over it.
     const line = nodes.find(n => n.type === 'Box' && n.props?.marginTop === 1)
+    expect(line?.props?.position).toBeUndefined()
     expect(JSON.stringify(line)).not.toContain('Questioned the result')
     expect(pieceRules(everyNode(line))).toHaveLength(1)
     expect(truncatingDashes(nodes)).toHaveLength(0)
@@ -363,9 +357,9 @@ describe('the chapter line', () => {
 
 
 
-  each('a gap from the template shows as "Could add" with the comment mark', { prefs: prefs(2), rowNotes: { user: { [noteKey(USER_PROPS.text)]: { move: 'brief', gap: 'question, audience', turn: 0 } }, reply: null } }, async (surface, _h, $) => {
+  each('a gap from the template shows as "Could say" with the comment mark', { prefs: prefs(2), rowNotes: { user: { [noteKey(USER_PROPS.text)]: { move: 'brief', gap: 'question, audience', turn: 0 } }, reply: null } }, async (surface, _h, $) => {
     const ui = await mount($, surface, 'UserMessage', USER_PROPS)
-    expect(await ui.find({ type: 'Text', text: 'Could add: question, audience' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Could say the question to answer and who it is for' })).toBeDefined()
     await ui.unmount()
   })
 
@@ -382,17 +376,6 @@ describe('the chapter line', () => {
 })
 
 describe('the rule between feedback and rail', () => {
-  each('dismissed suggestions come back from the Coach menu until the next prompt', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
-    const ui = await mountBand($, surface)
-    await ui.press({ key: 'dismiss' })
-    expect(await ui.find({ key: 'chip-0' })).toBeUndefined()
-    await ui.press({ key: 'menu' })
-    await ui.press({ key: 'menu-restore' })
-    expect(await ui.find({ key: 'chip-0' })).toBeDefined()
-    expect(h.box.value.hiddenBand).toBeNull()
-    await ui.unmount()
-  })
-
   each('the band draws no rule, with suggestions or with the Focus row open', { prefs: prefs(5), band: BAND }, async (surface, h, $) => {
     const ui = await mountBand($, surface)
     expect(pieceRules(everyNode(await ui.drawn()))).toHaveLength(0)
@@ -522,9 +505,9 @@ describe('command output and first-run line', () => {
     await ui.unmount()
   })
 
-  each('the first-run line sits in the band until the first Coach press', { prefs: prefs(1) }, async (surface, h, $) => {
+  each('the first-run line sits in the band until the first ⋯ press', { prefs: prefs(1) }, async (surface, h, $) => {
     const ui = await mountBand($, surface)
-    const line = 'The coach follows your loop with Claude. Press Coach to focus on a step.'
+    const line = 'The coach follows your loop with Claude. Press ⋯ to focus on a step.'
     expect(await ui.find({ type: 'Text', text: line })).toBeDefined()
     await ui.press({ key: 'menu' })
     expect(await ui.find({ type: 'Text', text: line })).toBeUndefined()
@@ -535,6 +518,38 @@ describe('command output and first-run line', () => {
   each('no first-run line after three sessions', { prefs: prefs(4) }, async (surface, _h, $) => {
     const ui = await mountBand($, surface)
     expect(await ui.find({ type: 'Text', text: /follows your loop/ })).toBeUndefined()
+    await ui.unmount()
+  })
+})
+
+describe('model controls beside Coach', () => {
+  each('a recommendation takes the model slot with its effort; a press switches to it; the picker marks it', { prefs: prefs(5), sessionModel: 'claude-sonnet-5-5', sessionEffort: 'medium', route: { draft: '', model: 'opus', reason: 'planning', effort: 'high' } }, async (surface, h, $) => {
+    const ui = await mountBand($, surface)
+    expect((await ui.find({ key: 'model' }))?.props.label).toBe('Opus 5.5 · planning')
+    expect((await ui.find({ key: 'switch-mode' }))?.props.label).toBe('Prompt me')
+    await ui.press({ key: 'model' })
+    expect(h.box.value.modelChoice).toEqual({ model: 'opus', sticky: true, effort: 'high' })
+    expect((await ui.find({ key: 'model' }))?.props.label).toBe('Opus 5.5')
+    await ui.press({ key: 'model' })
+    expect((await ui.find({ key: 'effort-high' }))?.props.dimColor).toBe(true)
+    await ui.press({ key: 'effort-xhigh' })
+    expect(h.box.value.modelChoice).toEqual({ model: 'opus', sticky: true, effort: 'xhigh' })
+    await ui.press({ key: 'switch-mode' })
+    expect(h.box.value.prefs.settings.modelSwitch).toBe('auto')
+    await ui.unmount()
+  })
+
+  each('while the model is judged the slot shows the working mark', { prefs: prefs(5), sessionModel: 'claude-sonnet-5-5', routeBusy: true }, async (surface, _h, $) => {
+    const ui = await mountBand($, surface)
+    expect(await ui.find({ key: 'model' })).toBeUndefined()
+    expect(JSON.stringify(await ui.drawn())).toContain(surface === 'desktop' ? 'working' : '✻')
+    await ui.unmount()
+  })
+
+  each('the step line shows the written note, never a stock caption', { prefs: prefs(5), station: 'review', stationNote: 'check the 12% Nordlys figure' }, async (surface, _h, $) => {
+    const ui = await mountBand($, surface)
+    expect(await ui.find({ type: 'Text', text: 'check the 12% Nordlys figure' })).toBeDefined()
+    expect(JSON.stringify(await ui.drawn())).not.toContain("checking what Claude gave you")
     await ui.unmount()
   })
 })

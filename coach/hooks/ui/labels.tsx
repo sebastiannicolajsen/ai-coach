@@ -3,7 +3,7 @@ import { type Dollar, heads } from '../actions'
 import { labelMode } from '../fade'
 import { noteKey } from '../notes'
 import { STATION_NAME } from '../config'
-import { type Ui, fillRule, glyph, mark, wordColor } from './glyph'
+import { type Ui, fillRule, glyph, mark, spacer, spinner, wordColor } from './glyph'
 
 export { noteKey }
 
@@ -25,7 +25,8 @@ export function userNoteFor(st: CoachState, row: Row, isNewest: boolean): CoachU
 
 export const chapterCaption = (n: CoachUserNote | undefined): string => {
   if (!n) return CHAPTER_CAPTION.brief
-  if (n.from) return `moved on from ${STATION_NAME[n.from]}`
+  if (n.from) return n.detail ? `moved on from ${STATION_NAME[n.from]} · ${n.detail}` : `moved on from ${STATION_NAME[n.from]}`
+  if (n.detail) return n.detail
   if (n.caption) return n.caption
   if (n.outer) return n.outer.split(' · ').slice(1).join(' · ') || n.outer
   return CHAPTER_CAPTION[n.move]
@@ -37,9 +38,31 @@ export const chapterCaption = (n: CoachUserNote | undefined): string => {
 // Under the person's message, right-aligned: ✓ a move worth repeating, ◐ what it could still say. It is
 // placed over the empty space the engine leaves under the bubble (absolute, bottom right), so it sits right
 // under the message and takes no room of its own.
-function feedbackRow(ui: Ui, key: string, n: CoachUserNote | undefined, isShown: boolean) {
+// "audience, goal" → "Could say who it is for and what it should achieve".
+const GAP_WORDS: Record<string, string> = {
+  question: 'the question to answer',
+  'which data': 'which data to use',
+  audience: 'who it is for',
+  goal: 'what it should achieve',
+  output: 'the form you want back',
+  deadline: 'when it is due',
+}
+export const couldAdd = (gap: string): string => {
+  const parts = gap.split(', ').map(g => GAP_WORDS[g] ?? g)
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]
+  return `Could say ${list}`
+}
+
+function feedbackRow(ui: Ui, key: string, n: CoachUserNote | undefined, isShown: boolean, isBusy: boolean) {
   const { Box, Text } = ui
-  const feedback = n?.note ? { kind: 'good' as const, text: n.note } : n?.gap ? { kind: 'comment' as const, text: `Could add: ${n.gap}` } : null
+  if (isBusy) {
+    return (
+      <Box position="absolute" bottom={0} right={0}>
+        {spinner(ui, 'Reading your prompt')}
+      </Box>
+    )
+  }
+  const feedback = n?.note ? { kind: 'good' as const, text: n.note } : n?.gap ? { kind: 'comment' as const, text: couldAdd(n.gap) } : null
   if (!feedback) return null
   const reveal = isShown ? {} : { display: 'none' as const, hover: { scope: key, display: 'flex' as const } }
   return (
@@ -50,9 +73,18 @@ function feedbackRow(ui: Ui, key: string, n: CoachUserNote | undefined, isShown:
   )
 }
 
-function chapterLine(ui: Ui, n: CoachUserNote | undefined) {
+function chapterLine(ui: Ui, n: CoachUserNote | undefined, isBusy: boolean) {
   const { Box, Text } = ui
   const move = n?.move ?? 'brief'
+  // While the step is still being decided, the working mark stands where the step will be.
+  if (isBusy) {
+    return (
+      <Box flexDirection="row" gap={1} marginTop={1} alignItems="center">
+        <Box flexShrink={0}>{spinner(ui, 'Reading the step')}</Box>
+        {fillRule(ui)}
+      </Box>
+    )
+  }
   return (
     <Box flexDirection="row" gap={1} marginTop={1} alignItems="center">
       {glyph(ui, move, { mini: true })}
@@ -83,7 +115,9 @@ async function isNewest($: Dollar, id: string, kind: 'user' | 'reply', matches: 
   return isKnown || isNew || matches
 }
 
-// The chapter line sits above the engine's row as a sibling; no width on anything that holds the row.
+// The chapter line sits above the bubble with a small gap, like the feedback's distance below it; the feedback
+// is placed over the space the engine leaves under the bubble. No width on anything that holds the row.
+const LINE_GAP_PX = 6
 export async function userLabel($: Dollar, ui: Ui, e: Row, inner: unknown) {
   const { Box } = ui
   const st = await $.get()
@@ -91,12 +125,14 @@ export async function userLabel($: Dollar, ui: Ui, e: Row, inner: unknown) {
   const isFresh = await isNewest($, e.requestId, 'user', matches)
   const n = userNoteFor(st, e, isFresh)
   const key = `row-${e.requestId}`
+  const isBusy = st.noteBusy !== '' && st.noteBusy === noteKey(e.text)
   const isShown = labelMode(st.prefs.sessions) === 'all' || isFresh
   return (
     <Box key={key} hover={{ scope: key }} flexDirection="column">
-      {chapterLine(ui, n)}
+      {chapterLine(ui, n, isBusy)}
+      {spacer(ui, LINE_GAP_PX)}
       {inner as never}
-      {feedbackRow(ui, key, n, isShown)}
+      {feedbackRow(ui, key, n, isShown, isBusy)}
     </Box>
   )
 }

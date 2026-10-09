@@ -18,11 +18,12 @@ import {
 import { COMMIT_RE, DEPLOY_RE, LIMITS, OWN_DENY_TEXT, PUSH_RE } from './config'
 import { makeOwnCheck } from './own'
 import { blockedBecause, cadenceAllows, isFaded, isQuietPhase, recordShown } from './fade'
-import { analyseTurn, notePrompt, writeBand } from './haiku'
+import { analyseTurn, headTail, notePrompt, writeBand } from './haiku'
 import { MOVE_CAPTION, classifyMove } from './moves'
 import { freshGaps, gapNames, gapTemplate, missingFrom } from './gaps'
 import { noteKey } from './notes'
 import { cut, isVerbatim, staticBand } from './validate'
+import { endTurnChoice } from './route'
 
 export type Push = 'commit' | 'push' | 'deploy' | null
 
@@ -95,7 +96,11 @@ export async function onPrompt($: Dollar, text: string) {
     await set($, 'pendingSuggest', { template: gapTemplate(text, gaps), kind: 'brief_gap' })
     await addTrace($, 'gaps', true, `missing ${gapNames(gaps)}`)
   }
-  if (prefs.settings.cadence !== 'focus') $.clock.after(0, () => void runNote($, text, turn))
+  if (prefs.settings.cadence !== 'focus') {
+    // The row under the message shows a spinner until its feedback is written.
+    await set($, 'noteBusy', noteKey(text))
+    $.clock.after(0, () => void runNote($, text, turn))
+  }
   else await addTrace($, 'gate', false, 'cadence "on focus only" skips call C')
 }
 
@@ -120,9 +125,18 @@ async function applyNote($: Dollar, text: string, turn: number, note: { text: st
 }
 
 async function runNote($: Dollar, text: string, turn: number) {
+  try {
+    await writeNote($, text, turn)
+  } finally {
+    await $.patch('noteBusy', k => (k === noteKey(text) ? '' : k))
+  }
+}
+
+async function writeNote($: Dollar, text: string, turn: number) {
   const r = await notePrompt(complete($), text, (await $.get()).card)
   await recordUsage($, r.usage)
   if (r.good) await applyNote($, text, turn, r.good)
+  if (r.caption) await upsertUserNote($, noteKey(text), { detail: r.caption })
   await addTrace(
     $,
     'C',
@@ -179,20 +193,19 @@ export async function onTurnComplete($: Dollar, answer: string, isAnswer: boolea
   await catchUpOnPrompt($)
   await dispatch($, { type: 'turn_complete', ownPending: (await $.get()).ownCheck !== null })
   await set($, 'moveNote', '')
-  await set($, 'lastAnswer', answer.slice(0, LIMITS.windowText))
+  await set($, 'lastAnswer', headTail(answer, LIMITS.answerText))
   const prompt = (await $.get()).lastPrompt
   await $.patch('fresh', f => [...f, heads(prompt), heads(answer)].filter(Boolean).slice(-6))
-  // In preview the step's own suggestions show the moment the reply ends; the analysis replaces them with
-  // specific ones when it finds something. So a slow, skipped or failed analysis never leaves the band empty.
-  const now = await $.get()
-  if (now.prefs.settings.preview && !now.focus && !now.ownCheck && !now.band) {
-    await showBand($, { ...staticBand(now.station), source: 'fallback' })
-  }
+  await endTurnChoice($)
   if (!isAnswer) return
   const prefs = (await $.get()).prefs
   const turn = (await $.get()).turnIndex
-  if (cadenceAllows(prefs.settings.cadence, turn)) $.clock.after(0, () => void runAnalysis($, turn))
-  else await addTrace($, 'gate', false, `cadence "${prefs.settings.cadence}" skips the analysis on turn ${turn}`)
+  if (cadenceAllows(prefs.settings.cadence, turn)) {
+    // A spinner holds the band's place while the suggestions are written, so the person sees work going on.
+    const now = await $.get()
+    if (!isQuietPhase(prefs) && !now.focus && !now.ownCheck) await set($, 'bandLoading', true)
+    $.clock.after(0, () => void runAnalysis($, turn))
+  } else await addTrace($, 'gate', false, `cadence "${prefs.settings.cadence}" skips the analysis on turn ${turn}`)
   $.clock.after(0, () => void showSuggestion($))
   $.clock.after(0, () => void refreshUsage($))
 }
@@ -219,6 +232,22 @@ async function catchUpOnPrompt($: Dollar) {
 }
 
 export async function runAnalysis($: Dollar, turn: number) {
+  try {
+    await analyse($, turn)
+  } finally {
+    // In preview a turn never ends without suggestions: the step's own when nothing better came back.
+    const st = await $.get()
+    if (st.turnIndex === turn) {
+      await set($, 'bandLoading', false)
+      if (st.prefs.settings.preview && !st.band && !st.focus && !st.ownCheck) {
+        await showBand($, { ...staticBand(st.station), source: 'fallback' })
+        await addTrace($, 'band', true, `preview: ${st.station} suggestions (nothing specific came back)`)
+      }
+    }
+  }
+}
+
+async function analyse($: Dollar, turn: number) {
   const input = await turnInput($)
   const isPreview = (await $.get()).prefs.settings.preview
   const r = await analyseTurn(complete($), input, isPreview)
@@ -230,6 +259,13 @@ export async function runAnalysis($: Dollar, turn: number) {
     return
   }
 
+  if (r.stepNote) await set($, 'stationNote', r.stepNote)
+  // The model the likely next prompt suits, for the model button; a draft's own recommendation wins.
+  const st0 = await $.get()
+  if (r.nextModel && (st0.prefs.settings.recommendModel || st0.prefs.settings.modelSwitch !== 'off') && !st0.route?.draft) {
+    await set($, 'route', { draft: '', ...r.nextModel })
+  }
+
   const claims = r.card.unchecked_claims.filter(c => isVerbatim(input.answer, c)).slice(-MAX_CHECK)
   await set($, 'rowNotes', { ...(await $.get()).rowNotes, reply: { turn, check: claims.map(c => cut(c, CHECK_CHARS)) } })
 
@@ -239,16 +275,12 @@ export async function runAnalysis($: Dollar, turn: number) {
     if (t.suggest && !suggest) suggest = t.suggest
   }
   if (!r.finding) {
-    // In preview the band always offers the current step's own suggestions when the analysis found nothing,
-    // so the loop is visible while testing and demoing. Outside preview silence stays the default.
-    const st = await $.get()
-    if (st.prefs.settings.preview && !st.band && !st.focus && !st.ownCheck && st.turnIndex === turn) {
-      await showBand($, { ...staticBand(st.station), source: 'fallback' })
-      await addTrace($, 'band', true, `preview: ${st.station} suggestions (no finding this turn)`)
-    }
+    // No finding: the next-step chips, written for this conversation, when the band may show at all.
+    if (r.next) await raise($, turn, input, { station: r.next.station, kind: 'next_step', evidence: r.next.evidence }, suggest, r.next)
+    else await addTrace($, 'band', false, 'no next-step chips survived')
     return
   }
-  await raise($, turn, input, r.finding, suggest, r.band)
+  await raise($, turn, input, r.finding, suggest, r.band ?? r.next)
 }
 
 async function raise(
@@ -290,7 +322,8 @@ async function raise(
       ? { ...band, suggestion: { station: suggest as typeof band.station, reason: GAP_REASON[suggest] ?? '' } }
       : band
   await showBand($, withSuggestion)
-  await savePrefs($, p => ({ ...p, fade: recordShown(p.fade, finding.kind, false) }))
+  // Next steps are not a behaviour to grow out of, so they never fade.
+  if (finding.kind !== 'next_step') await savePrefs($, p => ({ ...p, fade: recordShown(p.fade, finding.kind, false) }))
 }
 
 export async function askPausePreference($: Dollar) {

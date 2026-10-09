@@ -1,5 +1,5 @@
 import type { ModelUsage } from 'claude-code'
-import type { CoachUserNote, CoachState, CoachBand, CoachPrefs, CoachSettings, CoachStation } from '../types'
+import type { CoachUserNote, CoachState, CoachBand, CoachModel, CoachPrefs, CoachSettings, CoachStation } from '../types'
 import type { Ctx } from './ctx'
 import { EMPTY_CARD } from './card'
 import { COACH_MODELS, DEFAULT_SETTINGS, FOCUS_TEMPLATE, OWN_PASS_TEXT, STATION_NAME } from './config'
@@ -29,6 +29,12 @@ export const heads = (s: string) => s.trim().slice(0, 60)
 
 const PERSISTED = ['enabled', 'sessions', 'hintTaps', 'settings', 'fade', 'dismissals', 'silenced'] as const
 
+// Settings stored before the switch dialog said auto-switch on or off.
+const migrate = (s: CoachSettings & { autoSwitch?: boolean }): CoachSettings => {
+  const { autoSwitch, ...rest } = s
+  return autoSwitch === true && rest.modelSwitch === 'ask' ? { ...rest, modelSwitch: 'auto' } : rest
+}
+
 export async function loadPrefs($: Dollar): Promise<CoachPrefs> {
   const base = (await $.get()).prefs
   const stored: Partial<CoachPrefs> = {}
@@ -39,7 +45,7 @@ export async function loadPrefs($: Dollar): Promise<CoachPrefs> {
   const next: CoachPrefs = {
     ...base,
     ...stored,
-    settings: { ...DEFAULT_SETTINGS, ...(stored.settings ?? {}) },
+    settings: migrate({ ...DEFAULT_SETTINGS, ...(stored.settings ?? {}) }),
   }
   await set($, 'prefs', next)
   return next
@@ -60,7 +66,11 @@ export const saveSettings = ($: Dollar, patch: Partial<CoachSettings>) =>
 
 export async function recordUsage($: Dollar, usage: ModelUsage | null) {
   const m = COACH_MODELS[(await $.get()).prefs.settings.model] ?? COACH_MODELS['haiku-5.5']
-  if (usage) await $.patch('cost', c => addCost(c, usage, m.price))
+  await recordUsageAt($, usage, m.price)
+}
+
+export async function recordUsageAt($: Dollar, usage: ModelUsage | null, price: (typeof COACH_MODELS)[CoachModel]['price']) {
+  if (usage) await $.patch('cost', c => addCost(c, usage, price))
 }
 
 // The user row's data: its move, the ✓ note and an outer step, keyed by the prompt's text.
@@ -144,6 +154,7 @@ export async function toggleMenu($: Dollar) {
 
 export async function clearBand($: Dollar) {
   await setBand($, null)
+  await set($, 'stationNote', '')
   await set($, 'hiddenBand', null)
   await set($, 'bandLoading', false)
   await set($, 'ownCheck', null)
@@ -173,8 +184,24 @@ export async function restoreBand($: Dollar) {
   await setBand($, hidden)
 }
 
+const HISTORY_MESSAGES = 6
+
+// The exchanges before the last one, newest last; the last prompt and answer go in on their own.
+async function history($: Dollar): Promise<TurnInput['history']> {
+  try {
+    const all = (await $.session.messages()).filter(m => m.text.trim() !== '' && !m.text.trim().startsWith('/'))
+    let end = all.length
+    if (all[end - 1]?.role === 'assistant') end--
+    if (all[end - 1]?.role === 'user') end--
+    return all.slice(Math.max(0, end - HISTORY_MESSAGES), end)
+  } catch {
+    return []
+  }
+}
+
 export async function turnInput($: Dollar): Promise<TurnInput> {
   return {
+    history: await history($),
     card: (await $.get()).card,
     user: (await $.get()).lastPrompt,
     answer: (await $.get()).lastAnswer,

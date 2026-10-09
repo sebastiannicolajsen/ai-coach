@@ -198,7 +198,7 @@ const GAP_WORDS = /\b(without|missing|lacks?|lacking|no clear|unclear|vague|broa
 export function validateNote(
   raw: unknown,
   haystack: string,
-): { good: Note | null; suggestion: CoachSuggestion | null; move: CoachStation | null } {
+): { good: Note | null; suggestion: CoachSuggestion | null; move: CoachStation | null; caption: string | null } {
   const r = obj(raw)
   const g = obj(r.good)
   // A ✓ names one of a few concrete moves, in our words; anything else (or a gap) is no ✓ at all.
@@ -216,5 +216,7 @@ export function validateNote(
       : null
   const m = obj(r.move)
   const kindOfMove = MOVES.includes(m.kind as CoachStation) && isVerbatim(haystack, m.evidence) ? (m.kind as CoachStation) : null
-  return { good, suggestion, move: kindOfMove }
+  const rawCaption = typeof r.caption === 'string' ? norm(r.caption).replace(/[.!]+$/, '') : ''
+  const caption = rawCaption && rawCaption.length <= LIMITS.captionText && !/\b(great|good|excellent|well done|nice)\b/i.test(rawCaption) ? rawCaption : null
+  return { good, suggestion, move: kindOfMove, caption }
 }

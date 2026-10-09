@@ -28,6 +28,9 @@ export type Fake = {
   store: Map<string, unknown>
   // The conversation $.session.messages() answers.
   messages: { role: 'user' | 'assistant'; text: string }[]
+  sessionModel: string
+  // The /config rows $.config.list() answers; none by default, so switches fall back to each request.
+  configRows: { key: string; label: string; kind: string; value: unknown; options?: string[] }[]
   flush: () => Promise<void>
 }
 
@@ -48,6 +51,8 @@ export function makeFake(over: Partial<CoachState> = {}): Fake {
     box: { text: '' },
     store: new Map<string, unknown>(),
     messages: [] as { role: 'user' | 'assistant'; text: string }[],
+    sessionModel: 'claude-sonnet-5-5',
+    configRows: [] as { key: string; label: string; kind: string; value: unknown; options?: string[] }[],
   }
   const ctx = {
     get: async () => f.state,
@@ -95,11 +100,22 @@ export function makeFake(over: Partial<CoachState> = {}): Fake {
       set: async (k: string, v: unknown) => void f.store.set(k, v),
     },
     clock: { after: (_ms: number, fn: () => void) => (timers.push(fn), { cancel: () => {} }) },
+    config: {
+      list: async () => f.configRows,
+      set: async (a: { key: string; value: unknown }) => {
+        const row = f.configRows.find(r => r.key === a.key)
+        if (!row) throw new Error('no such row')
+        row.value = a.value
+        if (a.key === 'model') f.sessionModel = String(a.value)
+        return { value: a.value }
+      },
+    },
     session: {
-      usage: async () => ({ cost: { usd: 1.48 } }),
+      usage: async () => ({ cost: { usd: 1.48 }, context: { tokens: 20000, window: 1000000, percent: 2 } }),
       authorize: async () => null,
       surface: async () => 'terminal',
       messages: async () => f.messages,
+      model: async () => f.sessionModel,
     },
   }
   const flush = async () => {

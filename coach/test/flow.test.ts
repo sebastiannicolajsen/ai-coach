@@ -682,10 +682,46 @@ describe('first prompt and instant suggestions', () => {
     expect(f.state.rowNotes.user[noteKey('/coach preview on')]).toBeUndefined()
   })
 
-  test('in preview the step suggestions show at once, before any analysis, even when the turn is not an answer', async () => {
+  test('a spinner holds the band while the suggestions are written; in preview the step chips follow when nothing came back', async () => {
     const f = makeFake({ station: 'brief', turnIndex: 2, lastPrompt: 'x', prefs: prefsFor(2, { settings: { ...INITIAL.prefs.settings, preview: true } }) })
-    await onTurnComplete(f.ctx, '', false)
+    await onTurnComplete(f.ctx, 'Here is the summary.', true)
+    expect(f.state.bandLoading).toBe(true)
+    expect(f.state.band).toBeNull()
+    await f.flush()
+    expect(f.state.bandLoading).toBe(false)
     expect(f.state.band?.station).toBe('review')
-    expect(f.requests.length).toBe(0)
+    expect(f.state.band?.source).toBe('fallback')
+  })
+
+  test('without a finding the next-step chips, written for this conversation, show', async () => {
+    const answer = 'Option B from Nordlys is 12% cheaper than the others.'
+    const f = makeFake({ station: 'brief', turnIndex: 4, lastPrompt: 'Compare the supplier quotes', prefs: prefsFor(6) })
+    f.replies.push(
+      answered({
+        card: {},
+        flags: [],
+        finding: null,
+        next: {
+          station: 'review',
+          chips: [
+            { label: 'Check the 12%', fill: 'How did you get 12% for Nordlys?', evidence: '12% cheaper' },
+            { label: 'Compare delivery terms', fill: 'Compare delivery terms for Option B', evidence: 'Option B from Nordlys' },
+          ],
+        },
+      }),
+    )
+    await onTurnComplete(f.ctx, answer, true)
+    await f.flush()
+    expect(f.state.band?.chips.map(c => c.label)).toEqual(['Check the 12%', 'Compare delivery terms'])
+    expect(f.state.band?.kind).toBe('next_step')
+    expect(f.state.bandLoading).toBe(false)
+  })
+
+  test('the row under a prompt shows a spinner until its feedback is written', async () => {
+    const f = makeFake({ prefs: prefsFor(6) })
+    await onPrompt(f.ctx, 'Write the steering group summary of the churn numbers')
+    expect(f.state.noteBusy).not.toBe('')
+    await f.flush()
+    expect(f.state.noteBusy).toBe('')
   })
 })

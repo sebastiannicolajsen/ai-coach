@@ -43,13 +43,35 @@ After every reply from Claude the step line says Review: it is your turn to chec
 
 ## What you see
 
-- **Chapter line** above each of your messages: the step in its colour, a short caption and a thin line. When you leave Review for a new instruction it says `moved on from Review`.
-- **Feedback** under your message: `✓` for a move worth repeating (for example `Audience is named`, `Questioned the result`), `◐ Could add: question, audience` when a short request leaves out the basics.
+- **Chapter line** above each of your messages: the step in its colour, what the message does in a few specific words (for example `asks for three angles for the Nordlys pitch`) and a thin line. When you leave Review for a new instruction it starts with `moved on from Review`. While the step is decided, the line shows Claude's working mark and `Reading the step…`.
+- **Feedback** under your message: `✓` for a move worth repeating (for example `Audience is named`, `Questioned the result`), `◐ Could say who it is for and what it should achieve` when a short request leaves out what its kind of request needs (an analysis: the question and which data; a piece of writing: who it is for and what it should achieve). A gap already named earlier in the chat is not named again. While the feedback is written, the row shows Claude's working mark and `Reading your prompt…`.
 - **Template** in the empty prompt box after the reply, with named slots such as `[audience]` and `[deadline]`. Tab takes it.
-- **Suggestions** above the prompt: one row of buttons that put a question or prompt into the box, and `✕`. A dismissed set comes back from **Coach → Show suggestions** until your next prompt.
+- **Suggestions** above the prompt: the coach's clay `✦`, then a row of quiet buttons that put a question or prompt into the box. They are written for this conversation: the coach reads the last answer in full (its start and its end) and the exchanges before it, and each button names something concrete from them, such as an option Claude offered, a number to check or the next part to do. While they are written the row shows `Writing suggestions…`. They stay until your next prompt.
+- **Model controls** beside `⋯`, in the style of the model and effort at the foot of the prompt box. The model slot shows the model in use and its effort as a small vertical bar that fills from low to max; a press opens `Run Claude on` (Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.1) and `Effort` (low to max), the recommended ones marked `✦`. When the coach recommends another model or effort, the slot shows it instead, for example `Opus 5.5 · planning` with a clay bar, and a press switches to it. While the coach is still judging, the slot shows Claude's working mark. Then the mode, `Prompt me` (default), `Auto-select` or `Only show`, which a press cycles. See [Model recommendations](#model-recommendations).
 - **Own checks** when you take a result as final or push: `Tested myself`, `No client data` and a third drawn from the conversation, plus `Continue anyway`. With *Pause pushes* on, a push waits until the checks are done.
-- **Step line** under the suggestions: the four bars, the current step and its meaning, and `Coach`. `Coach` opens one row: `Focus on` Plan, Brief, Review or Own, the coach's cost, and `Turn off`.
+- **Step line** under the suggestions: the four bars, the current step and, after a reply, what to do now in a few specific words (for example `check the 12% Nordlys figure`), and `⋯`. `⋯` opens one row: `Focus on` Plan, Brief, Review or Own, the coach's cost, `Settings` (the pane) and `Turn off`.
 - **Pane** (`/coach`): the four steps, what the conversation is about, a `Stuck?` chat, settings and attribution.
+
+## Model recommendations
+
+The coach recommends the model a prompt suits, and how hard it should think (effort: low, medium, high, xhigh or max):
+
+| Model | Suits |
+|---|---|
+| Haiku 5.5 | Quick, small or mechanical work: a lookup, a rename, a short reply |
+| Sonnet 5.5 | Everyday work with a clear instruction: a draft, routine code, carrying out an agreed plan |
+| Opus 5.5 | Work that needs judgment: planning, open questions, reviewing important work, tricky debugging |
+| Fable 5.1 | The hardest work: long multi-step tasks, large changes, strategy with many moving parts |
+
+- **After each reply** the analysis names the model the likely next prompt suits, and it shows beside `⋯`, marked `✦`.
+- **When you send a prompt**, Haiku 5.5 judges the prompt itself (about a second), and the mode decides what happens when another model suits it:
+  - **Prompt me** (default): the prompt is held before anything runs, and Claude's own dialog asks: *This looks like planning. Send it with Opus 5.5 at high effort instead of Sonnet 5.5?* with `Send with Opus 5.5 · high (Recommended)` first, then `Keep Sonnet 5.5`, `Always switch for me` (turns on Auto-select) and `Stop asking` (turns on Only show). After `Keep`, the same suggestion is not asked about again for three prompts.
+  - **Auto-select**: the prompt goes to the suggested model, for that prompt only.
+  - **Only show**: nothing is held or switched; the recommendation stays beside `⋯`.
+- **While you type** (terminal only): when you pause, the draft is judged too. The desktop app does not share the draft with mods.
+- **Picking a model** in the slot, the picker or the dialog changes the session's own model and effort, as `/config` would, so the model picker at the foot of the prompt box shows the switch and people learn where it is done. Where the session offers no such setting, the switch applies to each request instead, until you pick another. `/coach why` says which way it went.
+
+The coach prefers the current model when it fits nearly as well, because a switch loses the cached conversation. A switch applies to the main conversation only, never to subagents. Each judgement costs a fraction of a cent and counts toward the coach's cost.
 
 ## Commands
 
@@ -61,6 +83,8 @@ After every reply from Claude the step line says Review: it is your turn to chec
 | `/coach preview on` · `off` | Show every finding from the first session (for testing and demos); plain `/coach preview` toggles |
 | `/coach model haiku` · `haiku-5.5` · `sonnet` · `opus` | Pick the model that writes the feedback |
 | `/coach model` | Show which model runs now |
+| `/coach recommend on` · `off` | Show the model suggestion beside Coach (on by default) |
+| `/coach switch ask` · `auto` · `off` | When a prompt suits another model: prompt me (default), auto-select, or only show |
 | `/coach why` | The last analysis: which calls ran, what came back and why anything was dropped |
 | `/coach settings` | Open the pane at the settings |
 | `/coach ask` | Open the `Stuck?` chat |
@@ -87,6 +111,8 @@ The Coach menu shows the coach's own cost as its share of the session, for examp
 In the pane (`/coach`):
 
 - **Feedback model**: Haiku 5.5 (default), Haiku 4.5, Sonnet 5.5 or Opus 5.5.
+- **Recommend a model**: on by default.
+- **Before a prompt runs**: Prompt me (default), Auto-select or Only show.
 - **Coach checks**: every turn (default), every 3rd turn, or on focus only.
 - **Pause pushes for a check**: off by default; asked once on the first push.
 - **Start quietly**: on by default. The first session then shows only the chapter lines and the step line; sessions two and three allow one set of suggestions per five turns; from session four, behaviours you already show stop being coached. Off is the same as `/coach preview on`.
@@ -97,7 +123,7 @@ Settings are shared by every chat and read again with each message.
 ## Privacy
 
 - **Reads** your prompts, Claude's answers and tool names in the session, only to follow the loop.
-- **Sends** short excerpts to the chosen feedback model through the session's own Claude connection, and to nothing else.
+- **Sends** short excerpts to the chosen feedback model, and your prompt (in the terminal also the draft) to Haiku 5.5 for a model recommendation, through the session's own Claude connection, and to nothing else.
 - **Keeps in memory** a small context card for the session only.
 - **Stores on disk** counters and settings only, never message text.
 
@@ -105,7 +131,7 @@ Mods are not sandboxed and see every prompt. Distribute through your organisatio
 
 ## For developers
 
-`hooks/register.tsx` wires every hook. Decisions are pure and unit-tested: `moves.ts` (which step a message is), `gaps.ts` (what a short request leaves out), `state.ts`, `card.ts`, `validate.ts`, `fade.ts`, `cost.ts`. `haiku.ts` makes the model calls and never throws. UI lives in `hooks/ui/`.
+`hooks/register.tsx` wires every hook. Decisions are pure and unit-tested: `moves.ts` (which step a message is), `gaps.ts` (what a short request leaves out), `state.ts`, `card.ts`, `validate.ts`, `fade.ts`, `cost.ts`. `haiku.ts` makes the model calls and never throws. `route.ts` recommends a model for the draft and picks the model of each turn, which the `turn.step` hook applies. UI lives in `hooks/ui/`.
 
 ```bash
 claude plugin validate .

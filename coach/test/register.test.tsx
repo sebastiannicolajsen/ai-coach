@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { harness } from './seed'
 import { INITIAL } from '../hooks/initial'
+import { withDefaults } from '../hooks/register'
 
 const prefs = (sessions: number, over = {}) => ({ ...INITIAL.prefs, sessions, ...over })
 
@@ -131,5 +132,13 @@ describe('help', () => {
     for (const part of ['/coach model haiku · haiku-5.5 · sonnet · opus', '/coach preview on', '/coach why', '/coach on · /coach off']) {
       expect(r.text).toContain(part)
     }
+  })
+})
+
+describe('state from before a reload', () => {
+  test('settings added since are filled in from the defaults', async () => {
+    const old = { ...INITIAL, prefs: { ...INITIAL.prefs, settings: { model: 'haiku' } } } as never
+    expect(withDefaults(old).prefs.settings.modelSwitch).toBe('ask')
+    expect(withDefaults(old).prefs.settings.model).toBe('haiku')
   })
 })
